@@ -1,0 +1,3798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Money Factory Tycoon</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖨️</text></svg>">
+<style>
+/* ============================================================
+   style.css — Money Factory Tycoon
+   Visual identity: industrial print-shop / mint. Brass + cash-
+   green accents on a dark factory-floor base. Condensed display
+   type for HUD numbers, humanist sans for UI text.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg-deep: #12141a;
+  --bg-panel: #1c2028;
+  --bg-panel-2: #262b35;
+  --bg-panel-3: #2f3542;
+  --line: rgba(255,255,255,0.09);
+  --line-strong: rgba(255,255,255,0.16);
+
+  --accent-cash: #3ddc84;
+  --accent-cash-dim: #24a05e;
+  --accent-brass: #d9a441;
+  --accent-brass-dim: #a97d2e;
+  --accent-warn: #ff6b4a;
+  --accent-info: #5b8cff;
+  --accent-mythic: #ff5da2;
+
+  --text-primary: #eef1f5;
+  --text-secondary: #b7bfcc;
+  --text-muted: #7c8494;
+
+  --font-display: 'Oswald', 'Arial Narrow', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; padding: 0; width: 100%; height: 100%;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+#app {
+  position: fixed; inset: 0;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+#gameCanvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+#gameCanvas:active { cursor: grabbing; }
+
+/* ---------------- Rivet / metal-plate panel treatment ---------------- */
+.plate {
+  background: linear-gradient(180deg, var(--bg-panel-3) 0%, var(--bg-panel) 70%);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+  position: relative;
+}
+.plate::before, .plate::after {
+  content: ""; position: absolute; width: 5px; height: 5px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #6b7280, #24272f);
+  top: 6px; box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+}
+.plate::before { left: 6px; }
+.plate::after { right: 6px; }
+
+/* ---------------- Top HUD ---------------- */
+#hud-top {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, rgba(18,20,26,0.96), rgba(18,20,26,0.75));
+  border-bottom: 1px solid var(--line);
+  z-index: 20;
+  backdrop-filter: blur(4px);
+}
+.hud-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent-cash);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.hud-chip.brass { border-left-color: var(--accent-brass); }
+.hud-chip.info { border-left-color: var(--accent-info); }
+.hud-chip .ico { font-size: 15px; opacity: 0.85; }
+.hud-chip .sub { font-family: var(--font-body); font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+#hud-location {
+  font-family: var(--font-body); font-size: 12px; color: var(--text-secondary);
+  margin-left: auto; text-align: right; display: flex; flex-direction: column; gap: 1px;
+}
+#hud-location b { color: var(--text-primary); font-weight: 600; }
+
+#btn-prestige-flag {
+  border: none; border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, #ffb238, #c8811d);
+  color: #241701; font-family: var(--font-display); font-size: 13px;
+  padding: 6px 10px; cursor: pointer; font-weight: 600;
+  animation: pulse-glow 1.6s ease-in-out infinite;
+  white-space: nowrap;
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,178,56,0.55); }
+  50% { box-shadow: 0 0 0 8px rgba(255,178,56,0); }
+}
+
+/* ---------------- Location bar (zones / floors) ---------------- */
+#location-bar {
+  position: absolute; top: 46px; left: 10px; right: 10px;
+  display: flex; gap: 6px; align-items: center;
+  z-index: 19;
+  pointer-events: none;
+}
+#location-bar .lb-group { display: flex; gap: 4px; pointer-events: auto; background: rgba(18,20,26,0.7); padding: 3px; border-radius: var(--radius-sm); border: 1px solid var(--line); }
+.lb-btn {
+  font-family: var(--font-body); font-size: 12px; font-weight: 600;
+  padding: 5px 9px; border-radius: 5px; border: 1px solid transparent;
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+  white-space: nowrap;
+}
+.lb-btn.active { background: var(--bg-panel-3); color: var(--accent-cash); border-color: var(--line-strong); }
+.lb-btn.locked { color: var(--text-muted); }
+.lb-btn .lock-cost { display: block; font-size: 10px; color: var(--accent-brass); font-weight: 500; }
+
+/* ---------------- Tier selector ---------------- */
+#tier-selector {
+  position: absolute; left: 10px; bottom: 10px;
+  display: flex; gap: 6px; z-index: 19;
+}
+.tier-btn {
+  width: 52px; height: 52px; border-radius: var(--radius-sm);
+  border: 2px solid var(--line-strong); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 10px; color: white;
+  background: var(--bg-panel-2);
+  position: relative;
+  opacity: 0.55;
+}
+.tier-btn .cost { font-size: 9px; font-family: var(--font-body); opacity: 0.85; }
+.tier-btn.unlocked { opacity: 1; }
+.tier-btn.selected { border-color: white; box-shadow: 0 0 0 2px rgba(255,255,255,0.25); }
+.tier-btn .swatch { width: 16px; height: 16px; border-radius: 4px; margin-bottom: 2px; }
+.tier-btn .lockicon { position: absolute; top: 2px; right: 3px; font-size: 10px; }
+
+/* ---------------- Bottom menu ---------------- */
+#bottom-menu {
+  position: absolute; right: 10px; bottom: 10px;
+  display: flex; gap: 6px; z-index: 19;
+}
+.menu-btn {
+  font-family: var(--font-display); font-size: 13px;
+  background: var(--bg-panel); border: 1px solid var(--line-strong);
+  color: var(--text-primary); border-radius: var(--radius-sm);
+  padding: 9px 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  position: relative;
+}
+.menu-btn .dot { position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent-warn); display: none; }
+.menu-btn .dot.show { display: block; }
+
+/* ---------------- Machine side panel ---------------- */
+#machine-panel {
+  position: absolute; top: 90px; right: 10px; width: 260px;
+  z-index: 21; padding: 12px; max-height: calc(100% - 180px); overflow-y: auto;
+}
+#machine-panel h3 { margin: 4px 0 2px; font-family: var(--font-display); font-size: 18px; }
+#machine-panel .m-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+.upg-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-top: 1px dashed var(--line); }
+.upg-row:first-of-type { border-top: none; }
+.upg-name { font-size: 13px; font-weight: 600; }
+.upg-level { font-size: 11px; color: var(--text-muted); }
+.btn {
+  font-family: var(--font-body); font-weight: 600; font-size: 12px;
+  border: none; border-radius: var(--radius-sm); padding: 7px 10px; cursor: pointer;
+  background: var(--accent-cash-dim); color: #05230f;
+}
+.btn:hover { filter: brightness(1.12); }
+.btn:disabled { background: #3a3f4a; color: var(--text-muted); cursor: not-allowed; }
+.btn.brass { background: var(--accent-brass); color: #2a1c02; }
+.btn.warn { background: var(--accent-warn); color: #2a0d02; }
+.btn.ghost { background: transparent; border: 1px solid var(--line-strong); color: var(--text-primary); }
+.panel-close { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; }
+
+/* ---------------- Modal overlay ---------------- */
+#modal-overlay {
+  position: absolute; inset: 0; z-index: 30;
+  background: rgba(8,9,12,0.72);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+#modal-content {
+  width: min(720px, 100%); max-height: 92%; overflow-y: auto;
+  padding: 18px;
+}
+#modal-content h2 { font-family: var(--font-display); font-size: 24px; margin: 4px 0 6px; }
+#modal-content .m-sub { color: var(--text-muted); font-size: 13px; margin-bottom: 14px; }
+.tab-row { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.tab-btn { background: none; border: none; color: var(--text-muted); font-family: var(--font-display); font-size: 14px; padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; }
+.tab-btn.active { color: var(--accent-cash); border-bottom-color: var(--accent-cash); }
+
+.room-card, .list-row {
+  display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 8px;
+  background: var(--bg-panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+}
+.room-card .r-icon { font-size: 26px; width: 40px; text-align: center; }
+.room-card .r-body { flex: 1; min-width: 0; }
+.room-card .r-title { font-family: var(--font-display); font-size: 16px; }
+.room-card .r-desc { font-size: 12px; color: var(--text-muted); }
+.bar-track { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent-cash); }
+
+.tech-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.tech-branch h4 { font-family: var(--font-display); font-size: 14px; color: var(--text-secondary); margin: 0 0 8px; text-transform: none; }
+.tech-node {
+  padding: 9px; margin-bottom: 6px; border-radius: var(--radius-sm);
+  border: 1px solid var(--line); background: var(--bg-panel-2);
+  font-size: 12px; cursor: pointer;
+}
+.tech-node.owned { border-color: var(--accent-cash-dim); background: rgba(61,220,132,0.09); cursor: default; }
+.tech-node.locked { opacity: 0.45; cursor: not-allowed; }
+.tech-node .t-name { font-weight: 700; margin-bottom: 2px; }
+.tech-node .t-cost { color: var(--accent-brass); font-size: 11px; }
+
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-top: 1px dashed var(--line); }
+.setting-row:first-of-type { border-top: none; }
+.lang-toggle { display: flex; border: 1px solid var(--line-strong); border-radius: 999px; overflow: hidden; }
+.lang-toggle button { border: none; background: var(--bg-panel-2); color: var(--text-secondary); padding: 6px 14px; font-family: var(--font-body); font-weight: 600; font-size: 12px; cursor: pointer; }
+.lang-toggle button.active { background: var(--accent-cash-dim); color: #05230f; }
+.switch { position: relative; width: 42px; height: 24px; }
+.switch input { display:none; }
+.switch .track { position: absolute; inset: 0; background: #3a3f4a; border-radius: 999px; transition: background 0.15s; }
+.switch input:checked + .track { background: var(--accent-cash-dim); }
+.switch .knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: white; transition: transform 0.15s; }
+.switch input:checked + .track + .knob { transform: translateX(18px); }
+
+/* ---------------- Prestige modal ---------------- */
+.prestige-big { text-align: center; padding: 10px 0 18px; }
+.prestige-big .p-gain { font-family: var(--font-display); font-size: 34px; color: var(--accent-brass); }
+
+/* ---------------- Offline earnings modal ---------------- */
+#offline-modal {
+  position: absolute; inset: 0; z-index: 40;
+  background: rgba(8,9,12,0.8); display: flex; align-items: center; justify-content: center;
+}
+#offline-modal .plate { width: min(420px, 92%); padding: 22px; text-align: center; }
+#offline-modal .o-amount { font-family: var(--font-display); font-size: 30px; color: var(--accent-cash); margin: 10px 0; }
+
+/* ---------------- Toasts ---------------- */
+#toast-stack {
+  position: absolute; left: 50%; top: 82px; transform: translateX(-50%);
+  z-index: 35; display: flex; flex-direction: column; gap: 6px; align-items: center;
+  pointer-events: none;
+}
+.toast {
+  font-family: var(--font-body); font-weight: 600; font-size: 13px;
+  background: rgba(20,22,28,0.94); border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--accent-cash); padding: 7px 12px; border-radius: var(--radius-sm);
+  animation: toast-in 0.18s ease-out, toast-out 0.3s ease-in 2.4s forwards;
+  white-space: nowrap;
+}
+.toast.warn { border-left-color: var(--accent-warn); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(-6px); } }
+
+/* ---------------- Rotate notice ---------------- */
+#rotate-notice {
+  position: fixed; inset: 0; z-index: 100; background: var(--bg-deep);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  font-family: var(--font-display); font-size: 20px; text-align: center; padding: 20px;
+}
+#rotate-notice .spin-icon { font-size: 44px; animation: spin 1.6s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.hidden { display: none !important; }
+
+/* ============================================================
+   Responsive: mobile landscape gets a dedicated touch layout.
+   Breakpoint by pointer/touch + narrower viewport height.
+   ============================================================ */
+@media (pointer: coarse), (hover: none) {
+  .mobile-only { display: block; }
+  #bottom-menu { flex-direction: column; right: 8px; bottom: auto; top: 90px; }
+  .menu-btn { padding: 10px; font-size: 0; width: 44px; height: 44px; justify-content: center; }
+  .menu-btn .mb-label { display: none; }
+  #tier-selector { left: 8px; bottom: 8px; }
+  .tier-btn { width: 46px; height: 46px; }
+  #machine-panel { right: 8px; top: 8px; width: 220px; max-height: 70%; }
+  #location-bar { top: 44px; }
+  #drawer-toggle {
+    position: absolute; left: 10px; top: 90px; z-index: 22;
+    width: 40px; height: 40px; border-radius: var(--radius-sm);
+    background: var(--bg-panel); border: 1px solid var(--line-strong); color: var(--text-primary);
+    font-size: 18px;
+  }
+}
+
+
+</style>
+</head>
+<body>
+<div id="app">
+
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Top HUD -->
+  <div id="hud-top">
+    <div class="hud-chip">
+      <span class="ico">💵</span>
+      <span id="hud-money-val">0</span>
+      <span class="sub" id="hud-mps-val"></span>
+    </div>
+    <div class="hud-chip brass">
+      <span class="ico">🔬</span>
+      <span id="hud-research-val">0</span>
+    </div>
+    <div class="hud-chip info" id="hud-power-wrap">
+      <span class="ico">⚡</span>
+      <span id="hud-power-val">0/0</span>
+    </div>
+    <div id="hud-location">
+      <span><b id="hud-zone-name">Zone</b></span>
+      <span id="hud-floor-name">Floor</span>
+    </div>
+    <button id="btn-prestige-flag" class="hidden" data-i18n="hud.prestigeAvailable"></button>
+  </div>
+
+  <!-- Zone / floor switch bar -->
+  <div id="location-bar">
+    <div class="lb-group" id="zone-buttons"></div>
+    <div class="lb-group" id="floor-buttons"></div>
+  </div>
+
+  <!-- Tier selector -->
+  <div id="tier-selector"></div>
+
+  <!-- Bottom-right menu -->
+  <nav id="bottom-menu">
+    <button class="menu-btn" data-panel="rooms"><span>🏭</span><span class="mb-label" data-i18n="menu.rooms"></span></button>
+    <button class="menu-btn" data-panel="prestige"><span>♻️</span><span class="mb-label" data-i18n="menu.prestige"></span><span class="dot" id="dot-prestige"></span></button>
+    <button class="menu-btn" data-panel="tech"><span>🧪</span><span class="mb-label" data-i18n="menu.tech"></span><span class="dot" id="dot-tech"></span></button>
+    <button class="menu-btn" data-panel="settings"><span>⚙️</span><span class="mb-label" data-i18n="menu.settings"></span></button>
+  </nav>
+
+  <!-- Mobile drawer toggle + drawer (extra info / controls help) -->
+  <button id="drawer-toggle" class="mobile-only">☰</button>
+  <div id="mobile-drawer" class="mobile-only plate hidden" style="position:absolute; left:8px; top:138px; width:200px; z-index:23; padding:10px;"></div>
+
+  <!-- Selected machine panel -->
+  <div id="machine-panel" class="plate hidden"></div>
+
+  <!-- Generic modal -->
+  <div id="modal-overlay" class="hidden">
+    <div id="modal-content" class="plate"></div>
+  </div>
+
+  <!-- Offline earnings modal -->
+  <div id="offline-modal" class="hidden">
+    <div class="plate">
+      <h2 data-i18n="offline.title"></h2>
+      <p id="offline-body"></p>
+      <div class="o-amount" id="offline-amount"></div>
+      <p id="offline-capped-note" class="m-sub hidden" data-i18n="offline.capped"></p>
+      <button class="btn brass" id="offline-claim-btn" data-i18n="offline.claim" style="width:100%; padding:12px; font-size:15px;"></button>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toast-stack"></div>
+
+  <!-- Rotate notice for mobile portrait -->
+  <div id="rotate-notice" class="hidden">
+    <div class="spin-icon">📱</div>
+    <div data-i18n="app.title" style="font-size:15px; opacity:0.7;"></div>
+    <div data-i18n="orientation.rotate">Please rotate your device to landscape</div>
+  </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+
+/* ---- src/00-data.js ---- */
+/* ============================================================
+   00-data.js — Static game content/data definitions.
+   Single source for all balancing numbers & content lists.
+   ============================================================ */
+(function (G) {
+  "use strict";
+
+  // ---- Machine tiers -------------------------------------------------
+  // Each tier defines base economics + visuals. Machine "types" within a
+  // tier are thin flavor wrappers (name/color offset) sharing tier math,
+  // but tiers themselves are the meaningful gameplay differentiator.
+  const TIERS = [
+    {
+      id: "common",
+      name: "common",
+      order: 0,
+      color: "#9aa5ad",
+      glow: "#c7cfd4",
+      baseCost: 50,
+      costGrowth: 1.14,
+      baseCooldown: 2.2,          // seconds per cycle at level 0
+      baseYield: 1,                // $ per cycle at level 0
+      unlockRequirement: null,     // always available
+      particleDensity: 0.5,
+      critChance: 0.02,
+      critMult: 2,
+    },
+    {
+      id: "uncommon",
+      name: "uncommon",
+      order: 1,
+      color: "#57b871",
+      glow: "#9be3ae",
+      baseCost: 1200,
+      costGrowth: 1.15,
+      baseCooldown: 1.9,
+      baseYield: 8,
+      unlockRequirement: { type: "money", amount: 500 },
+      particleDensity: 0.7,
+      critChance: 0.035,
+      critMult: 2.2,
+    },
+    {
+      id: "epic",
+      name: "epic",
+      order: 2,
+      color: "#7a5cff",
+      glow: "#b6a4ff",
+      baseCost: 32000,
+      costGrowth: 1.16,
+      baseCooldown: 1.6,
+      baseYield: 65,
+      unlockRequirement: { type: "money", amount: 15000 },
+      particleDensity: 1.0,
+      critChance: 0.05,
+      critMult: 2.5,
+    },
+    {
+      id: "legendary",
+      name: "legendary",
+      order: 3,
+      color: "#ffb238",
+      glow: "#ffd98a",
+      baseCost: 900000,
+      costGrowth: 1.17,
+      baseCooldown: 1.3,
+      baseYield: 560,
+      unlockRequirement: { type: "money", amount: 400000 },
+      particleDensity: 1.3,
+      critChance: 0.07,
+      critMult: 3,
+    },
+    {
+      id: "mythic",
+      name: "mythic",
+      order: 4,
+      color: "#ff5da2",
+      glow: "#ffb2d6",
+      baseCost: 25000000,
+      costGrowth: 1.18,
+      baseCooldown: 1.0,
+      baseYield: 4800,
+      unlockRequirement: { type: "prestige", amount: 1 },
+      particleDensity: 1.7,
+      critChance: 0.1,
+      critMult: 3.5,
+    },
+  ];
+
+  // ---- Machine "types" — flavor variants, 1 per tier is enough to keep
+  // scope sane while still giving each tier a distinct printer to place.
+  const MACHINE_TYPES = TIERS.map((t, i) => ({
+    id: "printer_" + t.id,
+    tierId: t.id,
+    nameKey: "machine." + t.id + ".name",
+    descKey: "machine." + t.id + ".desc",
+  }));
+
+  // Upgrade definitions applied per-machine-instance. Each upgrade has
+  // discrete levels; cost scales per level; effect scales per level.
+  const UPGRADES = {
+    speed: { id: "speed", nameKey: "upgrade.speed", maxLevel: 20, baseCost: 25, costGrowth: 1.22, effectPerLevel: 0.035 }, // -3.5% cooldown/lvl
+    output: { id: "output", nameKey: "upgrade.output", maxLevel: 20, baseCost: 30, costGrowth: 1.22, effectPerLevel: 0.08 }, // +8% yield/lvl
+    ink: { id: "ink", nameKey: "upgrade.ink", maxLevel: 10, baseCost: 60, costGrowth: 1.3, effectPerLevel: 0.01 }, // +1% crit chance/lvl, +0.15 crit mult/lvl
+  };
+
+  // ---- Factory layout: zones -> floors -> grid slots -----------------
+  const GRID_COLS = 6;
+  const GRID_ROWS = 4;
+
+  const ZONES = [
+    {
+      id: "zone_downtown",
+      nameKey: "zone.downtown.name",
+      unlock: null, // starter zone
+      floors: [
+        { id: "z1f1", nameKey: "floor.1", unlock: null },
+        { id: "z1f2", nameKey: "floor.2", unlock: { type: "money", amount: 8000 } },
+      ],
+    },
+    {
+      id: "zone_industrial",
+      nameKey: "zone.industrial.name",
+      unlock: { type: "money", amount: 50000 },
+      floors: [
+        { id: "z2f1", nameKey: "floor.1", unlock: null },
+        { id: "z2f2", nameKey: "floor.2", unlock: { type: "money", amount: 250000 } },
+      ],
+    },
+    {
+      id: "zone_corporate",
+      nameKey: "zone.corporate.name",
+      unlock: { type: "prestige", amount: 1 },
+      floors: [
+        { id: "z3f1", nameKey: "floor.1", unlock: null },
+        { id: "z3f2", nameKey: "floor.2", unlock: { type: "money", amount: 5000000 } },
+      ],
+    },
+  ];
+
+  // Per-floor economy upgrades (conveyors / auto-collectors)
+  const FLOOR_SYSTEMS = {
+    conveyor: { baseCost: 400, costGrowth: 1.9, maxLevel: 5, effectPerLevel: 0.12 }, // +12% floor output/lvl
+    collector: { baseCost: 1200, costGrowth: 2.1, maxLevel: 5, effectPerLevel: 1 }, // unlocks/improves auto-collect tick rate
+  };
+
+  // ---- Functional rooms (global, one of each per save) ---------------
+  const ROOMS = {
+    rnd: {
+      id: "rnd",
+      nameKey: "room.rnd.name",
+      maxLevel: 25,
+      baseCost: 2000,
+      costGrowth: 1.35,
+      baseRatePerSec: 0.15, // research points / sec at level 1
+      ratePerLevel: 0.12,
+    },
+    vault: {
+      id: "vault",
+      nameKey: "room.vault.name",
+      maxLevel: 25,
+      baseCost: 3000,
+      costGrowth: 1.35,
+      baseOfflineCapHours: 2,
+      offlineCapPerLevel: 0.5, // +0.5hr cap per level
+      baseInterestPerHour: 0.0, // interest starts at lvl>=1
+      interestPerLevel: 0.004, // +0.4%/hr per level, applied to stored money while offline/idle
+    },
+    power: {
+      id: "power",
+      nameKey: "room.power.name",
+      maxLevel: 25,
+      baseCost: 2500,
+      costGrowth: 1.35,
+      basePower: 10,
+      powerPerLevel: 6,
+    },
+  };
+  // Power cost: each active auto-collector consumes power.
+  const POWER_COST_COLLECTOR = 3;
+
+  // ---- Tech tree (spent with prestige perk points) --------------------
+  const TECH_TREE = [
+    // Production branch
+    { id: "t_prod_1", branch: "production", nameKey: "tech.prod1.name", cost: 1, researchCost: 100, effect: { type: "globalOutputMult", value: 0.05 }, requires: [] },
+    { id: "t_prod_2", branch: "production", nameKey: "tech.prod2.name", cost: 2, researchCost: 200, effect: { type: "globalOutputMult", value: 0.08 }, requires: ["t_prod_1"] },
+    { id: "t_prod_3", branch: "production", nameKey: "tech.prod3.name", cost: 3, researchCost: 300, effect: { type: "critChanceAdd", value: 0.02 }, requires: ["t_prod_2"] },
+    { id: "t_prod_4", branch: "production", nameKey: "tech.prod4.name", cost: 5, researchCost: 500, effect: { type: "globalOutputMult", value: 0.15 }, requires: ["t_prod_3"] },
+    { id: "t_prod_5", branch: "production", nameKey: "tech.prod5.name", cost: 8, researchCost: 800, effect: { type: "globalSpeedMult", value: 0.1 }, requires: ["t_prod_4"] },
+    // Automation branch
+    { id: "t_auto_1", branch: "automation", nameKey: "tech.auto1.name", cost: 1, researchCost: 100, effect: { type: "powerDiscount", value: 0.1 }, requires: [] },
+    { id: "t_auto_2", branch: "automation", nameKey: "tech.auto2.name", cost: 2, researchCost: 200, effect: { type: "collectorSpeedMult", value: 0.15 }, requires: ["t_auto_1"] },
+    { id: "t_auto_4", branch: "automation", nameKey: "tech.auto4.name", cost: 5, researchCost: 500, effect: { type: "rndRateMult", value: 0.25 }, requires: ["t_auto_2"] },
+    { id: "t_auto_5", branch: "automation", nameKey: "tech.auto5.name", cost: 8, researchCost: 800, effect: { type: "powerDiscount", value: 0.15 }, requires: ["t_auto_4"] },
+    // Economy branch
+    { id: "t_econ_1", branch: "economy", nameKey: "tech.econ1.name", cost: 1, researchCost: 100, effect: { type: "upgradeDiscount", value: 0.08 }, requires: [] },
+    { id: "t_econ_2", branch: "economy", nameKey: "tech.econ2.name", cost: 2, researchCost: 200, effect: { type: "offlineCapAdd", value: 1 }, requires: ["t_econ_1"] },
+    { id: "t_econ_3", branch: "economy", nameKey: "tech.econ3.name", cost: 3, researchCost: 300, effect: { type: "machineCostDiscount", value: 0.06 }, requires: ["t_econ_2"] },
+    { id: "t_econ_4", branch: "economy", nameKey: "tech.econ4.name", cost: 5, researchCost: 500, effect: { type: "startingMoneyMult", value: 0.5 }, requires: ["t_econ_3"] },
+    { id: "t_econ_5", branch: "economy", nameKey: "tech.econ5.name", cost: 8, researchCost: 800, effect: { type: "prestigeGainMult", value: 0.1 }, requires: ["t_econ_4"] },
+  ];
+
+  // ---- Prestige curve --------------------------------------------------
+  const PRESTIGE = {
+    minMaxMoneyToUnlock: 2000000,
+    // perk points earned = floor( sqrt(maxMoney / divisor) )
+    divisor: 250000,
+  };
+
+  G.DATA = {
+    TIERS, MACHINE_TYPES, UPGRADES, GRID_COLS, GRID_ROWS, ZONES,
+    FLOOR_SYSTEMS, ROOMS, POWER_COST_COLLECTOR,
+    TECH_TREE, PRESTIGE,
+    tierById(id) { return TIERS.find(t => t.id === id); },
+    machineTypeById(id) { return MACHINE_TYPES.find(m => m.id === id); },
+    zoneById(id) { return ZONES.find(z => z.id === id); },
+    floorById(zoneId, floorId) {
+      const z = ZONES.find(z => z.id === zoneId);
+      return z ? z.floors.find(f => f.id === floorId) : null;
+    },
+    techById(id) { return TECH_TREE.find(t => t.id === id); },
+  };
+})(window.Game = window.Game || {});
+
+
+/* ---- src/01-i18n.js ---- */
+/* ============================================================
+   01-i18n.js — Localization system (EN / VI), no page reload.
+   Usage: Game.i18n.t('key', {param: value}) -> string
+          Game.i18n.setLang('vi') -> re-renders all [data-i18n] nodes
+   ============================================================ */
+(function (G) {
+  "use strict";
+
+  const STRINGS = {
+    en: {
+      "app.title": "Money Factory Tycoon",
+      "hud.money": "Cash",
+      "hud.perSec": "/sec",
+      "hud.research": "Research",
+      "hud.power": "Power",
+      "hud.prestigeAvailable": "Rebirth Ready!",
+      "hud.zone": "Zone",
+      "hud.floor": "Floor",
+
+      "menu.factory": "Factory",
+      "menu.rooms": "Rooms",
+      "menu.prestige": "Rebirth",
+      "menu.tech": "Tech Tree",
+      "menu.settings": "Settings",
+      "menu.close": "Close",
+
+      "zone.downtown.name": "Downtown Warehouse",
+      "zone.industrial.name": "Industrial Park",
+      "zone.corporate.name": "Corporate Tower",
+      "floor.1": "Floor 1",
+      "floor.2": "Floor 2",
+      "floor.locked": "Locked",
+      "floor.unlockFor": "Unlock for {amount}",
+      "zone.unlockFor": "Unlock zone for {amount}",
+      "zone.unlockPrestige": "Requires {amount} rebirth(s)",
+
+      "machine.common.name": "Inkjet Press",
+      "machine.common.desc": "A humble desktop printer that somehow prints cash.",
+      "machine.uncommon.name": "Offset Press",
+      "machine.uncommon.desc": "Industrial-grade roller press. Smells like fresh ink.",
+      "machine.epic.name": "Digital Press",
+      "machine.epic.desc": "Laser-precise plates etch bills at high speed.",
+      "machine.legendary.name": "Quantum Printer",
+      "machine.legendary.desc": "Prints money in superposition — spent and unspent at once.",
+      "machine.mythic.name": "Singularity Mint",
+      "machine.mythic.desc": "A pocket dimension that folds paper into fortunes.",
+
+      "tier.common": "Common",
+      "tier.uncommon": "Uncommon",
+      "tier.epic": "Epic",
+      "tier.legendary": "Legendary",
+      "tier.mythic": "Mythic",
+
+      "action.buy": "Buy",
+      "action.buyMachine": "Place {tier}",
+      "action.upgrade": "Upgrade",
+      "action.collect": "Collect",
+      "action.max": "MAX",
+      "action.locked": "Locked",
+      "action.select": "Select",
+      "action.selected": "Selected",
+      "action.rebirth": "Rebirth Now",
+      "action.confirm": "Confirm",
+      "action.cancel": "Cancel",
+
+      "upgrade.speed": "Speed",
+      "upgrade.output": "Output",
+      "upgrade.ink": "Ink Quality",
+
+      "floorsys.conveyor": "Conveyor Belts",
+      "floorsys.collector": "Auto-Collectors",
+      "floorsys.conveyor.desc": "Boosts all machine output on this floor.",
+      "floorsys.collector.desc": "Automatically collects finished cash nearby.",
+
+      "room.rnd.name": "R&D Lab",
+      "room.rnd.desc": "Generates Research Points over time, spent on Tech Tree purchases.",
+      "room.vault.name": "Cash Vault",
+      "room.vault.desc": "Increases offline earning cap and passive interest.",
+      "room.power.name": "Power Plant",
+      "room.power.desc": "Generates Power required to run automation.",
+      "room.level": "Level {level}",
+
+      "prestige.title": "Factory Rebirth",
+      "prestige.desc": "Reset your factory for permanent Perk Points and a lasting production bonus. Zones, machines and room levels reset — Perk Points and Tech Tree stay forever.",
+      "prestige.locked": "Reach {amount} cash at once to unlock rebirth.",
+      "prestige.gain": "You will gain {amount} Perk Points",
+      "prestige.current": "Rebirths: {count} | Perk Points: {points}",
+      "prestige.confirmTitle": "Rebirth the factory?",
+      "prestige.confirmBody": "This resets your money, machines and room levels. You keep Perk Points and all Tech Tree upgrades. This cannot be undone.",
+
+      "tech.title": "Tech Tree",
+      "tech.points": "Perk Points: {points} · Research: {research}",
+      "tech.branch.production": "Production",
+      "tech.branch.automation": "Automation",
+      "tech.branch.economy": "Economy",
+      "tech.prod1.name": "Efficient Presses",
+      "tech.prod2.name": "Precision Ink",
+      "tech.prod3.name": "Lucky Streaks",
+      "tech.prod4.name": "Mass Production",
+      "tech.prod5.name": "Overclocked Motors",
+      "tech.auto1.name": "Energy Efficiency",
+      "tech.auto2.name": "Swift Collectors",
+      "tech.auto4.name": "Lab Grants",
+      "tech.auto5.name": "Smart Grid",
+      "tech.econ1.name": "Bulk Discounts",
+      "tech.econ2.name": "Bigger Vault",
+      "tech.econ3.name": "Supplier Deals",
+      "tech.econ4.name": "Seed Capital",
+      "tech.econ5.name": "Legacy Fund",
+
+      "settings.title": "Settings",
+      "settings.language": "Language",
+      "settings.music": "Music",
+      "settings.sfx": "Sound Effects",
+      "settings.hardReset": "Erase Save & Restart",
+      "settings.hardResetConfirm": "This permanently deletes ALL progress. Are you sure?",
+      "settings.export": "Export Save",
+      "settings.import": "Import Save",
+
+      "offline.title": "Welcome back!",
+      "offline.body": "You were away for {time}.",
+      "offline.earned": "Your factory produced {amount} while you were gone.",
+      "offline.capped": "(capped by your Cash Vault level)",
+      "offline.claim": "Claim & Continue",
+
+      "notify.machinePlaced": "{tier} printer placed!",
+      "notify.upgradeBought": "{upgrade} upgraded to level {level}!",
+      "notify.zoneUnlocked": "{zone} unlocked!",
+      "notify.floorUnlocked": "{floor} unlocked!",
+      "notify.prestige": "Factory reborn! +{points} Perk Points",
+      "notify.techUnlocked": "{tech} researched!",
+      "notify.notEnoughMoney": "Not enough cash!",
+      "notify.notEnoughPoints": "Not enough Perk Points!",
+      "notify.notEnoughResearch": "Not enough Research Points!",
+      "notify.notEnoughPower": "Not enough Power! Upgrade your Power Plant.",
+      "notify.saved": "Game saved",
+      "notify.saveExported": "Save code copied to the clipboard.",
+      "notify.importFailed": "Invalid save code.",
+      "notify.slotEmpty": "Empty slot — buy a printer here.",
+
+      "controls.title": "Controls",
+      "controls.pc": "WASD/Arrows: pan camera · Space: collect nearest · Scroll: zoom · Drag: pan · 1-5: select machine tier",
+      "controls.mobile": "Touch/drag: pan camera · Tap machine: collect · Buttons: menus",
+
+      "tooltip.locked": "Unlock the previous tier or floor first.",
+      "common.perSecShort": "/s",
+      "common.perHour": "/hr",
+      "orientation.rotate": "Please rotate your device to landscape",
+    },
+
+    vi: {
+      "app.title": "Đại Công Xưởng Tiền",
+      "hud.money": "Tiền",
+      "hud.perSec": "/giây",
+      "hud.research": "Nghiên cứu",
+      "hud.power": "Điện",
+      "hud.prestigeAvailable": "Sẵn Sàng Tái Sinh!",
+      "hud.zone": "Khu",
+      "hud.floor": "Tầng",
+
+      "menu.factory": "Nhà Máy",
+      "menu.rooms": "Phòng Chức Năng",
+      "menu.prestige": "Tái Sinh",
+      "menu.tech": "Cây Công Nghệ",
+      "menu.settings": "Cài Đặt",
+      "menu.close": "Đóng",
+
+      "zone.downtown.name": "Kho Trung Tâm",
+      "zone.industrial.name": "Khu Công Nghiệp",
+      "zone.corporate.name": "Tòa Tháp Tập Đoàn",
+      "floor.1": "Tầng 1",
+      "floor.2": "Tầng 2",
+      "floor.locked": "Đã khóa",
+      "floor.unlockFor": "Mở khóa với {amount}",
+      "zone.unlockFor": "Mở khóa khu với {amount}",
+      "zone.unlockPrestige": "Cần {amount} lần tái sinh",
+
+      "machine.common.name": "Máy In Phun",
+      "machine.common.desc": "Một chiếc máy in bàn khiêm tốn nhưng lại in ra tiền.",
+      "machine.uncommon.name": "Máy In Offset",
+      "machine.uncommon.desc": "Máy ép cuộn công nghiệp. Thoang thoảng mùi mực mới.",
+      "machine.epic.name": "Máy In Kỹ Thuật Số",
+      "machine.epic.desc": "Bản khắc laser chính xác, in tiền với tốc độ cao.",
+      "machine.legendary.name": "Máy In Lượng Tử",
+      "machine.legendary.desc": "In tiền ở trạng thái chồng chập — vừa tiêu vừa chưa tiêu.",
+      "machine.mythic.name": "Xưởng Đúc Kỳ Dị",
+      "machine.mythic.desc": "Một chiều không gian túi gấp giấy thành vận may.",
+
+      "tier.common": "Phổ Thông",
+      "tier.uncommon": "Không Phổ Biến",
+      "tier.epic": "Sử Thi",
+      "tier.legendary": "Huyền Thoại",
+      "tier.mythic": "Thần Thoại",
+
+      "action.buy": "Mua",
+      "action.buyMachine": "Đặt {tier}",
+      "action.upgrade": "Nâng Cấp",
+      "action.collect": "Thu Tiền",
+      "action.max": "TỐI ĐA",
+      "action.locked": "Đã Khóa",
+      "action.select": "Chọn",
+      "action.selected": "Đã Chọn",
+      "action.rebirth": "Tái Sinh Ngay",
+      "action.confirm": "Xác Nhận",
+      "action.cancel": "Hủy",
+
+      "upgrade.speed": "Tốc Độ",
+      "upgrade.output": "Sản Lượng",
+      "upgrade.ink": "Chất Lượng Mực",
+
+      "floorsys.conveyor": "Băng Chuyền",
+      "floorsys.collector": "Máy Thu Tự Động",
+      "floorsys.conveyor.desc": "Tăng sản lượng của tất cả máy trên tầng này.",
+      "floorsys.collector.desc": "Tự động thu tiền đã hoàn thành gần đó.",
+
+      "room.rnd.name": "Phòng R&D",
+      "room.rnd.desc": "Tạo Điểm Nghiên Cứu theo thời gian, dùng để mua Cây Công Nghệ.",
+      "room.vault.name": "Hầm Tiền",
+      "room.vault.desc": "Tăng giới hạn thu nhập offline và lãi suất thụ động.",
+      "room.power.name": "Nhà Máy Điện",
+      "room.power.desc": "Tạo ra Điện cần thiết để vận hành tự động hóa.",
+      "room.level": "Cấp {level}",
+
+      "prestige.title": "Tái Sinh Nhà Máy",
+      "prestige.desc": "Đặt lại nhà máy để nhận Điểm Kỹ Năng vĩnh viễn và tiền thưởng sản xuất lâu dài. Khu, máy và cấp phòng sẽ đặt lại — Điểm Kỹ Năng và Cây Công Nghệ được giữ mãi mãi.",
+      "prestige.locked": "Cần đạt {amount} tiền cùng lúc để mở khóa tái sinh.",
+      "prestige.gain": "Bạn sẽ nhận được {amount} Điểm Kỹ Năng",
+      "prestige.current": "Số lần tái sinh: {count} | Điểm Kỹ Năng: {points}",
+      "prestige.confirmTitle": "Tái sinh nhà máy?",
+      "prestige.confirmBody": "Thao tác này đặt lại tiền, máy và cấp phòng của bạn. Bạn giữ lại Điểm Kỹ Năng và mọi nâng cấp Cây Công Nghệ. Không thể hoàn tác.",
+
+      "tech.title": "Cây Công Nghệ",
+      "tech.points": "Điểm Kỹ Năng: {points} · Nghiên Cứu: {research}",
+      "tech.branch.production": "Sản Xuất",
+      "tech.branch.automation": "Tự Động Hóa",
+      "tech.branch.economy": "Kinh Tế",
+      "tech.prod1.name": "Máy Ép Hiệu Quả",
+      "tech.prod2.name": "Mực In Chính Xác",
+      "tech.prod3.name": "Chuỗi May Mắn",
+      "tech.prod4.name": "Sản Xuất Hàng Loạt",
+      "tech.prod5.name": "Động Cơ Ép Xung",
+      "tech.auto1.name": "Hiệu Suất Năng Lượng",
+      "tech.auto2.name": "Máy Thu Nhanh",
+      "tech.auto4.name": "Tài Trợ Phòng Lab",
+      "tech.auto5.name": "Lưới Điện Thông Minh",
+      "tech.econ1.name": "Giảm Giá Sỉ",
+      "tech.econ2.name": "Hầm Lớn Hơn",
+      "tech.econ3.name": "Thỏa Thuận Nhà Cung Cấp",
+      "tech.econ4.name": "Vốn Khởi Điểm",
+      "tech.econ5.name": "Quỹ Di Sản",
+
+      "settings.title": "Cài Đặt",
+      "settings.language": "Ngôn Ngữ",
+      "settings.music": "Nhạc Nền",
+      "settings.sfx": "Hiệu Ứng Âm Thanh",
+      "settings.hardReset": "Xóa Dữ Liệu & Bắt Đầu Lại",
+      "settings.hardResetConfirm": "Thao tác này sẽ xóa VĨNH VIỄN toàn bộ tiến trình. Bạn có chắc không?",
+      "settings.export": "Xuất File Lưu",
+      "settings.import": "Nhập File Lưu",
+
+      "offline.title": "Chào mừng trở lại!",
+      "offline.body": "Bạn đã vắng mặt {time}.",
+      "offline.earned": "Nhà máy của bạn đã sản xuất {amount} trong lúc bạn vắng mặt.",
+      "offline.capped": "(giới hạn bởi cấp độ Hầm Tiền của bạn)",
+      "offline.claim": "Nhận & Tiếp Tục",
+
+      "notify.machinePlaced": "Đã đặt máy in {tier}!",
+      "notify.upgradeBought": "{upgrade} đã nâng lên cấp {level}!",
+      "notify.zoneUnlocked": "Đã mở khóa {zone}!",
+      "notify.floorUnlocked": "Đã mở khóa {floor}!",
+      "notify.prestige": "Nhà máy đã tái sinh! +{points} Điểm Kỹ Năng",
+      "notify.techUnlocked": "Đã nghiên cứu {tech}!",
+      "notify.notEnoughMoney": "Không đủ tiền!",
+      "notify.notEnoughPoints": "Không đủ Điểm Kỹ Năng!",
+      "notify.notEnoughResearch": "Không đủ Điểm Nghiên Cứu!",
+      "notify.notEnoughPower": "Không đủ Điện! Hãy nâng cấp Nhà Máy Điện.",
+      "notify.saved": "Đã lưu trò chơi",
+      "notify.saveExported": "Đã sao chép mã lưu vào bộ nhớ tạm.",
+      "notify.importFailed": "Mã lưu không hợp lệ.",
+      "notify.slotEmpty": "Ô trống — hãy mua máy in tại đây.",
+
+      "controls.title": "Điều Khiển",
+      "controls.pc": "WASD/Mũi tên: di chuyển camera · Space: thu tiền gần nhất · Cuộn: thu phóng · Kéo: di chuyển · 1-5: chọn bậc máy",
+      "controls.mobile": "Chạm/kéo: di chuyển camera · Chạm máy: thu tiền · Nút: menu",
+
+      "tooltip.locked": "Hãy mở khóa bậc hoặc tầng trước đó.",
+      "common.perSecShort": "/g",
+      "common.perHour": "/giờ",
+      "orientation.rotate": "Vui lòng xoay thiết bị sang chế độ ngang",
+    },
+  };
+
+  let currentLang = "en";
+  const listeners = [];
+
+  function t(key, params) {
+    const dict = STRINGS[currentLang] || STRINGS.en;
+    let str = dict[key];
+    if (str === undefined) str = STRINGS.en[key];
+    if (str === undefined) return key;
+    if (params) {
+      Object.keys(params).forEach((p) => {
+        str = str.replace(new RegExp("\\{" + p + "\\}", "g"), params[p]);
+      });
+    }
+    return str;
+  }
+
+  function setLang(lang) {
+    if (!STRINGS[lang]) return;
+    currentLang = lang;
+    applyToDom();
+    listeners.forEach((fn) => {
+      try { fn(lang); } catch (e) { console.error(e); }
+    });
+  }
+
+  function getLang() { return currentLang; }
+
+  function onChange(fn) { listeners.push(fn); }
+
+  function applyToDom() {
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      el.textContent = t(key);
+    });
+    document.querySelectorAll("[data-i18n-attr]").forEach((el) => {
+      // format: data-i18n-attr="placeholder:some.key|title:other.key"
+      const spec = el.getAttribute("data-i18n-attr");
+      spec.split("|").forEach((pair) => {
+        const [attr, key] = pair.split(":");
+        if (attr && key) el.setAttribute(attr, t(key));
+      });
+    });
+    document.documentElement.setAttribute("lang", currentLang);
+  }
+
+  G.i18n = { t, setLang, getLang, onChange, applyToDom, STRINGS };
+})(window.Game = window.Game || {});
+
+
+/* ---- src/02-state.js ---- */
+/* ============================================================
+   02-state.js — Single source of truth for all game state.
+   Every system (economy, factory, prestige, save, ui) reads and
+   mutates THIS object. No system keeps its own duplicated copy.
+   ============================================================ */
+(function (G) {
+  "use strict";
+  const D = G.DATA;
+
+  const SAVE_VERSION = 1;
+
+  function makeEmptyGrid() {
+    const slots = [];
+    for (let r = 0; r < D.GRID_ROWS; r++) {
+      for (let c = 0; c < D.GRID_COLS; c++) {
+        slots.push({
+          r, c,
+          machine: null, // { typeId, tierId, levels: {speed,output,ink,auto}, progress: 0..1, lastCollectAmount }
+        });
+      }
+    }
+    return slots;
+  }
+
+  function makeFloor(floorDef) {
+    return {
+      id: floorDef.id,
+      unlocked: !floorDef.unlock,
+      grid: makeEmptyGrid(),
+      systems: {
+        conveyor: 0,
+        collector: 0,
+      },
+    };
+  }
+
+  function makeZone(zoneDef) {
+    return {
+      id: zoneDef.id,
+      unlocked: !zoneDef.unlock,
+      floors: zoneDef.floors.map(makeFloor),
+    };
+  }
+
+  function defaultState() {
+    return {
+      saveVersion: SAVE_VERSION,
+      createdAt: Date.now(),
+      lastSaveTime: Date.now(),
+      lastActiveTime: Date.now(),
+
+      money: 50,
+      totalEarned: 0,       // this prestige run (resets on rebirth)
+      lifetimeEarned: 0,    // total cash ever granted; used for lifetime unlocks/stats only
+      maxMoney: 50,         // highest cash balance ever reached in the current run
+
+      research: 0,          // research points from R&D room; spent on Tech Tree purchases
+      offlinePending: null, // persisted offline reward waiting for player claim
+
+      currentZoneId: D.ZONES[0].id,
+      currentFloorId: D.ZONES[0].floors[0].id,
+      zones: D.ZONES.map(makeZone),
+
+      rooms: {
+        rnd: { level: 0 },
+        vault: { level: 0 },
+        power: { level: 0 },
+      },
+
+      prestige: {
+        count: 0,
+        perkPoints: 0,
+        tech: {}, // techId -> true
+      },
+
+      settings: {
+        lang: "en",
+        music: true,
+        sfx: true,
+        musicVolume: 0.35,
+        sfxVolume: 0.7,
+      },
+
+      camera: { x: 0, y: 0, zoom: 1 },
+
+      selectedTierId: "common",
+
+      stats: {
+        totalClicks: 0,
+        totalMachinesPlaced: 0,
+        totalUpgradesBought: 0,
+        playTimeSeconds: 0,
+      },
+    };
+  }
+
+  // ---- Defensive merge: fills in any missing/invalid fields from a
+  // loaded save with sensible defaults so corrupt/partial saves never
+  // crash the game (spec section 23).
+  function sanitizeState(loaded) {
+    const base = defaultState();
+    if (!loaded || typeof loaded !== "object") return base;
+
+    const out = base;
+    try {
+      if (typeof loaded.money === "number" && isFinite(loaded.money) && loaded.money >= 0) out.money = loaded.money;
+      if (typeof loaded.totalEarned === "number" && isFinite(loaded.totalEarned)) out.totalEarned = Math.max(0, loaded.totalEarned);
+      if (typeof loaded.lifetimeEarned === "number" && isFinite(loaded.lifetimeEarned)) out.lifetimeEarned = Math.max(0, loaded.lifetimeEarned);
+      if (typeof loaded.maxMoney === "number" && isFinite(loaded.maxMoney)) out.maxMoney = Math.max(0, loaded.maxMoney);
+      out.maxMoney = Math.max(out.maxMoney, out.money);
+      if (typeof loaded.research === "number" && isFinite(loaded.research)) out.research = Math.max(0, loaded.research);
+      if (loaded.offlinePending && typeof loaded.offlinePending === "object") {
+        const p = loaded.offlinePending;
+        const finite = (v) => typeof v === "number" && isFinite(v);
+        if (finite(p.amount) && p.amount >= 0 && finite(p.production) && p.production >= 0 && finite(p.interestGained) && p.interestGained >= 0 && finite(p.researchGained) && p.researchGained >= 0 && finite(p.cappedSeconds) && p.cappedSeconds >= 0 && finite(p.capHours) && p.capHours >= 0 && finite(p.elapsedSeconds) && p.elapsedSeconds >= 0) {
+          out.offlinePending = {
+            amount: p.amount,
+            production: p.production,
+            interestGained: p.interestGained,
+            researchGained: p.researchGained,
+            cappedSeconds: p.cappedSeconds,
+            capHours: p.capHours,
+            wasCapped: !!p.wasCapped,
+            elapsedSeconds: p.elapsedSeconds,
+          };
+        }
+      }
+      if (typeof loaded.lastSaveTime === "number" && isFinite(loaded.lastSaveTime) && loaded.lastSaveTime >= 0) out.lastSaveTime = loaded.lastSaveTime;
+      if (typeof loaded.lastActiveTime === "number" && isFinite(loaded.lastActiveTime) && loaded.lastActiveTime >= 0) out.lastActiveTime = loaded.lastActiveTime;
+      if (typeof loaded.createdAt === "number" && isFinite(loaded.createdAt) && loaded.createdAt >= 0) out.createdAt = loaded.createdAt;
+
+      if (loaded.settings && typeof loaded.settings === "object") {
+        if (loaded.settings.lang === "en" || loaded.settings.lang === "vi") out.settings.lang = loaded.settings.lang;
+        if (typeof loaded.settings.music === "boolean") out.settings.music = loaded.settings.music;
+        if (typeof loaded.settings.sfx === "boolean") out.settings.sfx = loaded.settings.sfx;
+        if (typeof loaded.settings.musicVolume === "number") out.settings.musicVolume = clamp01(loaded.settings.musicVolume);
+        if (typeof loaded.settings.sfxVolume === "number") out.settings.sfxVolume = clamp01(loaded.settings.sfxVolume);
+      }
+
+      if (loaded.prestige && typeof loaded.prestige === "object") {
+        if (typeof loaded.prestige.count === "number") out.prestige.count = Math.max(0, Math.floor(loaded.prestige.count));
+        if (typeof loaded.prestige.perkPoints === "number") out.prestige.perkPoints = Math.max(0, Math.floor(loaded.prestige.perkPoints));
+        if (loaded.prestige.tech && typeof loaded.prestige.tech === "object") {
+          D.TECH_TREE.forEach((t) => {
+            if (loaded.prestige.tech[t.id] && t.requires.every((req) => !!out.prestige.tech[req])) out.prestige.tech[t.id] = true;
+          });
+        }
+      }
+
+      if (loaded.rooms && typeof loaded.rooms === "object") {
+        ["rnd", "vault", "power"].forEach((k) => {
+          const def = D.ROOMS[k];
+          const lvl = loaded.rooms[k] && loaded.rooms[k].level;
+          if (typeof lvl === "number" && isFinite(lvl)) {
+            out.rooms[k].level = Math.max(0, Math.min(def.maxLevel, Math.floor(lvl)));
+          }
+        });
+      }
+
+      if (typeof loaded.selectedTierId === "string" && D.tierById(loaded.selectedTierId)) {
+        out.selectedTierId = loaded.selectedTierId;
+      }
+
+      if (loaded.camera && typeof loaded.camera === "object") {
+        if (typeof loaded.camera.x === "number") out.camera.x = loaded.camera.x;
+        if (typeof loaded.camera.y === "number") out.camera.y = loaded.camera.y;
+        if (typeof loaded.camera.zoom === "number" && loaded.camera.zoom > 0) out.camera.zoom = clamp(loaded.camera.zoom, 0.5, 2.5);
+      }
+
+      if (typeof loaded.currentZoneId === "string" && D.zoneById(loaded.currentZoneId)) out.currentZoneId = loaded.currentZoneId;
+
+      // Zones/floors/grid — merge by id, ignore anything unrecognized/corrupt.
+      if (Array.isArray(loaded.zones)) {
+        out.zones.forEach((zone) => {
+          const lz = loaded.zones.find((z) => z && z.id === zone.id);
+          if (!lz) return;
+          if (typeof lz.unlocked === "boolean") zone.unlocked = lz.unlocked || zone.unlocked;
+          if (Array.isArray(lz.floors)) {
+            zone.floors.forEach((floor) => {
+              const lf = lz.floors.find((f) => f && f.id === floor.id);
+              if (!lf) return;
+              if (typeof lf.unlocked === "boolean") floor.unlocked = lf.unlocked || floor.unlocked;
+              if (lf.systems && typeof lf.systems === "object") {
+                ["conveyor", "collector"].forEach((k) => {
+                  const v = lf.systems[k];
+                  if (typeof v === "number" && isFinite(v)) {
+                    floor.systems[k] = Math.max(0, Math.floor(v));
+                  }
+                });
+              }
+              if (Array.isArray(lf.grid)) {
+                floor.grid.forEach((slot) => {
+                  const ls = lf.grid.find((s) => s && s.r === slot.r && s.c === slot.c);
+                  if (!ls || !ls.machine) return;
+                  const m = ls.machine;
+                  if (typeof m.typeId === "string" && D.machineTypeById(m.typeId)) {
+                    slot.machine = {
+                      typeId: m.typeId,
+                      // tierId is derived from the validated machine type so a corrupt/mismatched
+                      // tier cannot enter the runtime state.
+                      tierId: D.machineTypeById(m.typeId).tierId,
+                      levels: {
+                        speed: safeLevel(m.levels && m.levels.speed, D.UPGRADES.speed.maxLevel),
+                        output: safeLevel(m.levels && m.levels.output, D.UPGRADES.output.maxLevel),
+                        ink: safeLevel(m.levels && m.levels.ink, D.UPGRADES.ink.maxLevel),
+                      },
+                      progress: typeof m.progress === "number" && isFinite(m.progress) ? clamp01(m.progress) : 0,
+                      banked: typeof m.banked === "number" && isFinite(m.banked) ? Math.max(0, m.banked) : 0,
+                    };
+                  }
+                });
+              }
+              if (typeof lf.id === "string" && loaded.currentFloorId === lf.id) {
+                // handled below
+              }
+            });
+          }
+        });
+      }
+      // Keep the active location valid and accessible.
+      const activeZone = D.zoneById(out.currentZoneId);
+      if (!activeZone) out.currentZoneId = D.ZONES[0].id;
+      else if (!out.zones.find((z) => z.id === out.currentZoneId && z.unlocked)) {
+        const fallback = out.zones.find((z) => z.unlocked);
+        out.currentZoneId = fallback ? fallback.id : D.ZONES[0].id;
+      }
+      const activeZoneState = out.zones.find((z) => z.id === out.currentZoneId);
+      const requestedFloor = typeof loaded.currentFloorId === "string" ? loaded.currentFloorId : null;
+      if (activeZoneState) {
+        const wanted = activeZoneState.floors.find((f) => f.id === requestedFloor && f.unlocked);
+        const fallbackFloor = activeZoneState.floors.find((f) => f.unlocked);
+        out.currentFloorId = wanted ? wanted.id : (fallbackFloor ? fallbackFloor.id : D.ZONES.find((z) => z.id === out.currentZoneId).floors[0].id);
+      }
+
+      out.lifetimeEarned = Math.max(out.lifetimeEarned, out.totalEarned);
+      out.maxMoney = Math.max(out.maxMoney, out.money);
+
+      if (loaded.stats && typeof loaded.stats === "object") {
+        Object.keys(out.stats).forEach((k) => {
+          if (typeof loaded.stats[k] === "number" && isFinite(loaded.stats[k])) out.stats[k] = Math.max(0, loaded.stats[k]);
+        });
+      }
+    } catch (e) {
+      console.error("Save sanitize error, falling back to safe defaults for affected fields:", e);
+    }
+    return out;
+  }
+
+  function safeLevel(v, max) {
+    if (typeof v !== "number" || !isFinite(v) || v < 0) return 0;
+    return Math.min(max, Math.floor(v));
+  }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function clamp01(v) { return clamp(v, 0, 1); }
+
+  G.State = {
+    SAVE_VERSION,
+    defaultState,
+    sanitizeState,
+    clamp,
+    clamp01,
+  };
+})(window.Game = window.Game || {});
+
+
+/* ---- src/03-save.js ---- */
+/* ============================================================
+   03-save.js — LocalStorage persistence layer.
+   Defensive: any corrupt/missing/invalid data falls back to safe
+   defaults (via Game.State.sanitizeState) rather than crashing.
+   ============================================================ */
+(function (G) {
+  "use strict";
+
+  const SAVE_KEY = "moneyFactoryTycoon.save.v1";
+  const AUTOSAVE_INTERVAL_SEC = 20;
+
+  function isStorageAvailable() {
+    try {
+      const k = "__mft_test__";
+      window.localStorage.setItem(k, "1");
+      window.localStorage.removeItem(k);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  const storageAvailable = isStorageAvailable();
+
+  function save(state) {
+    if (!storageAvailable) return false;
+    try {
+      state.lastSaveTime = Date.now();
+      const json = JSON.stringify(state);
+      window.localStorage.setItem(SAVE_KEY, json);
+      return true;
+    } catch (e) {
+      console.error("Save failed:", e);
+      return false;
+    }
+  }
+
+  function loadRaw() {
+    if (!storageAvailable) return null;
+    try {
+      const json = window.localStorage.getItem(SAVE_KEY);
+      if (!json) return null;
+      return JSON.parse(json);
+    } catch (e) {
+      console.error("Save data corrupt, ignoring and using defaults:", e);
+      return null;
+    }
+  }
+
+  // Returns { state, isNewGame, offlineElapsedSeconds }
+  function load() {
+    const raw = loadRaw();
+    const state = G.State.sanitizeState(raw);
+    const isNewGame = !raw;
+    let offlineElapsedSeconds = 0;
+    if (!isNewGame && typeof raw.lastActiveTime === "number") {
+      offlineElapsedSeconds = Math.max(0, (Date.now() - raw.lastActiveTime) / 1000);
+    }
+    return { state, isNewGame, offlineElapsedSeconds };
+  }
+
+  function hardReset() {
+    if (storageAvailable) {
+      try { window.localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
+    }
+    return G.State.defaultState();
+  }
+
+  function exportSave(state) {
+    try {
+      return btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function importSave(base64) {
+    try {
+      const json = decodeURIComponent(escape(atob(base64.trim())));
+      const raw = JSON.parse(json);
+      return G.State.sanitizeState(raw);
+    } catch (e) {
+      console.error("Import failed:", e);
+      return null;
+    }
+  }
+
+  G.Save = {
+    SAVE_KEY, AUTOSAVE_INTERVAL_SEC, storageAvailable,
+    save, load, loadRaw, hardReset, exportSave, importSave,
+  };
+})(window.Game = window.Game || {});
+
+
+/* ---- src/04-economy.js ---- */
+/* ============================================================
+   04-economy.js — All numeric formulas in one place.
+   Pure functions operating on (state, DATA) -> numbers.
+   Keeping formulas centralized avoids drift/duplication bugs.
+   ============================================================ */
+(function (G) {
+  "use strict";
+  const D = G.DATA;
+
+  // ---- Tech tree effect aggregation -----------------------------------
+  function techEffects(state) {
+    const eff = {
+      globalOutputMult: 0,
+      globalSpeedMult: 0,
+      critChanceAdd: 0,
+      powerDiscount: 0,
+      collectorSpeedMult: 0,
+      rndRateMult: 0,
+      upgradeDiscount: 0,
+      offlineCapAdd: 0,
+      machineCostDiscount: 0,
+      startingMoneyMult: 0,
+      prestigeGainMult: 0,
+    };
+    Object.keys(state.prestige.tech).forEach((id) => {
+      if (!state.prestige.tech[id]) return;
+      const t = D.techById(id);
+      if (!t) return;
+      const e = t.effect;
+      if (eff[e.type] !== undefined) eff[e.type] += e.value;
+    });
+    return eff;
+  }
+
+  // ---- Machine placement cost: scales with how many of that tier are
+  // already placed anywhere in the factory (global count per tier). ----
+  function tierPlacedCount(state, tierId) {
+    let n = 0;
+    state.zones.forEach((z) => z.floors.forEach((f) => f.grid.forEach((s) => {
+      if (s.machine && s.machine.tierId === tierId) n++;
+    })));
+    return n;
+  }
+
+  function machineCost(state, tierId) {
+    const tier = D.tierById(tierId);
+    const n = tierPlacedCount(state, tierId);
+    const eff = techEffects(state);
+    const raw = tier.baseCost * Math.pow(tier.costGrowth, n);
+    return Math.ceil(raw * (1 - Math.min(0.6, eff.machineCostDiscount)));
+  }
+
+  function tierUnlocked(state, tierId) {
+    const tier = D.tierById(tierId);
+    if (!tier.unlockRequirement) return true;
+    const req = tier.unlockRequirement;
+    if (req.type === "money") return state.lifetimeEarned >= req.amount;
+    if (req.type === "prestige") return state.prestige.count >= req.amount;
+    return false;
+  }
+
+  // ---- Per-machine-instance upgrade costs/effects ----------------------
+  function upgradeCost(upgradeId, currentLevel, state) {
+    const u = D.UPGRADES[upgradeId];
+    const eff = techEffects(state);
+    const raw = u.baseCost * Math.pow(u.costGrowth, currentLevel);
+    return Math.ceil(raw * (1 - Math.min(0.5, eff.upgradeDiscount)));
+  }
+
+  function machineCooldown(machine, state) {
+    const tier = D.tierById(machine.tierId);
+    const eff = techEffects(state);
+    const speedLvl = machine.levels.speed;
+    const reduction = 1 - Math.min(0.75, D.UPGRADES.speed.effectPerLevel * speedLvl + eff.globalSpeedMult);
+    return Math.max(0.15, tier.baseCooldown * reduction);
+  }
+
+  function machineBaseYield(machine, floorMult, state) {
+    const tier = D.tierById(machine.tierId);
+    const eff = techEffects(state);
+    const outputLvl = machine.levels.output;
+    const outputMult = 1 + D.UPGRADES.output.effectPerLevel * outputLvl + eff.globalOutputMult;
+    return tier.baseYield * outputMult * floorMult;
+  }
+
+  function machineCritChance(machine, state) {
+    const tier = D.tierById(machine.tierId);
+    const eff = techEffects(state);
+    const inkLvl = machine.levels.ink;
+    return Math.min(0.6, tier.critChance + D.UPGRADES.ink.effectPerLevel * inkLvl + eff.critChanceAdd);
+  }
+
+  function machineCritMult(machine) {
+    const tier = D.tierById(machine.tierId);
+    const inkLvl = machine.levels.ink;
+    return tier.critMult + 0.15 * inkLvl;
+  }
+
+  // ---- Floor-level systems ----------------------------------------------
+  function floorOutputMult(floor) {
+    const lvl = floor.systems.conveyor;
+    return 1 + D.FLOOR_SYSTEMS.conveyor.effectPerLevel * lvl;
+  }
+
+  function floorSystemCost(systemId, currentLevel, state) {
+    const def = D.FLOOR_SYSTEMS[systemId];
+    const eff = techEffects(state);
+    let raw = def.baseCost * Math.pow(def.costGrowth, currentLevel);
+    return Math.ceil(raw);
+  }
+
+  function collectorTickSeconds(floor, state) {
+    // higher collector level -> faster sweep interval
+    const lvl = floor.systems.collector;
+    const eff = techEffects(state);
+    if (lvl <= 0) return null; // no auto collection
+    const base = Math.max(0.4, 3.0 - 0.4 * lvl);
+    return base * (1 - Math.min(0.5, eff.collectorSpeedMult));
+  }
+
+  // ---- Rooms --------------------------------------------------------------
+  function roomCost(roomId, currentLevel) {
+    const def = D.ROOMS[roomId];
+    return Math.ceil(def.baseCost * Math.pow(def.costGrowth, currentLevel));
+  }
+
+  function rndRatePerSec(state) {
+    const lvl = state.rooms.rnd.level;
+    if (lvl <= 0) return 0;
+    const def = D.ROOMS.rnd;
+    const eff = techEffects(state);
+    return (def.baseRatePerSec + def.ratePerLevel * (lvl - 1)) * (1 + eff.rndRateMult);
+  }
+
+  function vaultOfflineCapHours(state) {
+    const lvl = state.rooms.vault.level;
+    const def = D.ROOMS.vault;
+    const eff = techEffects(state);
+    const base = lvl <= 0 ? 1 : def.baseOfflineCapHours + def.offlineCapPerLevel * (lvl - 1);
+    return base + eff.offlineCapAdd;
+  }
+
+  function vaultInterestPerHour(state) {
+    const lvl = state.rooms.vault.level;
+    if (lvl <= 0) return 0;
+    const def = D.ROOMS.vault;
+    return def.baseInterestPerHour + def.interestPerLevel * lvl;
+  }
+
+  function powerCapacity(state) {
+    const lvl = state.rooms.power.level;
+    const def = D.ROOMS.power;
+    if (lvl <= 0) return 0;
+    return def.basePower + def.powerPerLevel * (lvl - 1);
+  }
+
+  function powerDemand(state) {
+    const eff = techEffects(state);
+    const discount = 1 - Math.min(0.4, eff.powerDiscount);
+    let demand = 0;
+    state.zones.forEach((z) => z.floors.forEach((f) => {
+      if (f.systems.collector > 0) demand += D.POWER_COST_COLLECTOR * discount;
+    }));
+    return demand;
+  }
+
+  function powerOk(state) {
+    return powerDemand(state) <= powerCapacity(state) + 1e-9;
+  }
+
+  // ---- Prestige ------------------------------------------------------------
+  // First rebirth requires 2M max cash held in the current run. Each later rebirth
+  // requires 2.5x the previous peak-cash threshold.
+  function prestigeRequirement(state) {
+    return D.PRESTIGE.minMaxMoneyToUnlock * Math.pow(2.5, state.prestige.count);
+  }
+
+  function prestigeUnlocked(state) {
+    return state.maxMoney >= prestigeRequirement(state);
+  }
+
+  function prestigeGain(state) {
+    const eff = techEffects(state);
+    const base = Math.floor(Math.sqrt(state.maxMoney / D.PRESTIGE.divisor));
+    return Math.max(0, Math.floor(base * (1 + eff.prestigeGainMult)));
+  }
+
+  function techCostAffordable(state, tech) {
+    return state.prestige.perkPoints >= tech.cost && state.research >= tech.researchCost;
+  }
+  function techPurchaseReason(state, tech) {
+    if (state.prestige.perkPoints < tech.cost) return "points";
+    if (state.research < tech.researchCost) return "research";
+    return null;
+  }
+
+  function techRequirementsMet(state, tech) {
+    return tech.requires.every((r) => !!state.prestige.tech[r]);
+  }
+
+  // ---- Formatting -----------------------------------------------------------
+  const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
+  function formatMoney(n) {
+    if (n === null || n === undefined || !isFinite(n)) return "0";
+    const sign = n < 0 ? "-" : "";
+    n = Math.abs(n);
+    if (n < 1000) return sign + (Math.floor(n * 100) / 100).toString();
+    let tier = 0;
+    while (n >= 1000 && tier < SUFFIXES.length - 1) { n /= 1000; tier++; }
+    if (tier === SUFFIXES.length - 1 && n >= 1000) return sign + n.toExponential(2).replace("e+", "e");
+    const decimals = n < 10 ? 2 : n < 100 ? 1 : 0;
+    const fixed = parseFloat(n.toFixed(decimals)); // trims trailing zeros (1.50 -> 1.5, 2.00 -> 2)
+    return sign + fixed + SUFFIXES[tier];
+  }
+
+  function formatTime(seconds) {
+    seconds = Math.max(0, Math.floor(seconds));
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  }
+
+  G.Econ = {
+    techEffects, tierPlacedCount, machineCost, tierUnlocked,
+    upgradeCost, machineCooldown, machineBaseYield, machineCritChance, machineCritMult,
+    floorOutputMult, floorSystemCost, collectorTickSeconds,
+    roomCost, rndRatePerSec, vaultOfflineCapHours, vaultInterestPerHour,
+    powerCapacity, powerDemand, powerOk,
+    prestigeRequirement, prestigeUnlocked, prestigeGain, techCostAffordable, techPurchaseReason, techRequirementsMet,
+    formatMoney, formatTime,
+  };
+})(window.Game = window.Game || {});
+
+
+/* ---- src/05-factory.js ---- */
+/* ============================================================
+   05-factory.js — Factory simulation: machines, conveyors,
+   auto-collectors, zones/floors, rooms tick, and the
+   offline-earnings simulation. This is the beating heart of the
+   idle/active production loop.
+   ============================================================ */
+(function (G) {
+  "use strict";
+  const D = G.DATA;
+  const E = G.Econ;
+
+  // Runtime-only (non-persisted-critical) per-floor timers, keyed by floor id.
+  const floorRuntime = {}; // { [floorId]: { collectorTimer, bonusTimer } }
+  function rt(floorId) {
+    if (!floorRuntime[floorId]) floorRuntime[floorId] = { collectorTimer: 0, bonusTimer: 3 + Math.random() * 6 };
+    return floorRuntime[floorId];
+  }
+
+  function getZone(state, zoneId) { return state.zones.find((z) => z.id === zoneId); }
+  function getFloor(state, zoneId, floorId) {
+    const z = getZone(state, zoneId);
+    return z ? z.floors.find((f) => f.id === floorId) : null;
+  }
+  function currentZone(state) { return getZone(state, state.currentZoneId); }
+  function currentFloor(state) { return getFloor(state, state.currentZoneId, state.currentFloorId); }
+
+  // ---- Placement / upgrades ---------------------------------------------
+  function canPlaceMachine(state, slot) {
+    return !slot.machine;
+  }
+
+  function placeMachine(state, zoneId, floorId, r, c, tierId) {
+    const floor = getFloor(state, zoneId, floorId);
+    if (!floor || !floor.unlocked) return { ok: false, reason: "floorLocked" };
+    if (!E.tierUnlocked(state, tierId)) return { ok: false, reason: "tierLocked" };
+    const slot = floor.grid.find((s) => s.r === r && s.c === c);
+    if (!slot || slot.machine) return { ok: false, reason: "occupied" };
+    const cost = E.machineCost(state, tierId);
+    if (state.money < cost) return { ok: false, reason: "money", cost };
+    state.money -= cost;
+    const type = D.MACHINE_TYPES.find((m) => m.tierId === tierId);
+    slot.machine = {
+      typeId: type.id,
+      tierId,
+      levels: { speed: 0, output: 0, ink: 0 },
+      progress: 0,
+      banked: 0,
+    };
+    state.stats.totalMachinesPlaced++;
+    return { ok: true, cost, tierId };
+  }
+
+  function upgradeMachine(state, zoneId, floorId, r, c, upgradeId) {
+    const floor = getFloor(state, zoneId, floorId);
+    if (!floor) return { ok: false };
+    const slot = floor.grid.find((s) => s.r === r && s.c === c);
+    if (!slot || !slot.machine) return { ok: false };
+    const u = D.UPGRADES[upgradeId];
+    if (!u) return { ok: false, reason: "invalid" };
+    const cur = slot.machine.levels[upgradeId];
+    if (cur >= u.maxLevel) return { ok: false, reason: "max" };
+    const cost = E.upgradeCost(upgradeId, cur, state);
+    if (state.money < cost) return { ok: false, reason: "money", cost };
+    state.money -= cost;
+    slot.machine.levels[upgradeId] = cur + 1;
+    state.stats.totalUpgradesBought++;
+    return { ok: true, cost, newLevel: cur + 1 };
+  }
+
+  // ---- Floor systems (conveyor / collector) ---------------------
+  function buyFloorSystem(state, zoneId, floorId, systemId) {
+    const floor = getFloor(state, zoneId, floorId);
+    if (!floor) return { ok: false };
+    const def = D.FLOOR_SYSTEMS[systemId];
+    if (!def) return { ok: false, reason: "invalid" };
+    const cur = floor.systems[systemId];
+    if (cur >= def.maxLevel) return { ok: false, reason: "max" };
+    const cost = E.floorSystemCost(systemId, cur, state);
+    if (state.money < cost) return { ok: false, reason: "money", cost };
+    // Power check for turning ON the collector (level 0 -> 1)
+    if (systemId === "collector" && cur === 0) {
+      const eff = E.techEffects(state);
+      const discount = 1 - Math.min(0.4, eff.powerDiscount);
+      const addedDemand = D.POWER_COST_COLLECTOR * discount;
+      const demandAfter = E.powerDemand(state) + addedDemand;
+      if (demandAfter > E.powerCapacity(state) + 1e-9) {
+        return { ok: false, reason: "power" };
+      }
+    }
+    state.money -= cost;
+    floor.systems[systemId] = cur + 1;
+    return { ok: true, cost, newLevel: cur + 1 };
+  }
+
+  // ---- Zones / floors unlocking -------------------------------------------
+  function unlockZone(state, zoneId) {
+    const zone = getZone(state, zoneId);
+    const def = D.zoneById(zoneId);
+    if (!zone || zone.unlocked) return { ok: false };
+    if (!def.unlock) { zone.unlocked = true; return { ok: true }; }
+    if (def.unlock.type === "money") {
+      if (state.money < def.unlock.amount) return { ok: false, reason: "money", cost: def.unlock.amount };
+      state.money -= def.unlock.amount;
+      zone.unlocked = true;
+      return { ok: true };
+    }
+    if (def.unlock.type === "prestige") {
+      if (state.prestige.count < def.unlock.amount) return { ok: false, reason: "prestige" };
+      zone.unlocked = true;
+      return { ok: true };
+    }
+    return { ok: false };
+  }
+
+  function unlockFloor(state, zoneId, floorId) {
+    const floor = getFloor(state, zoneId, floorId);
+    const def = D.floorById(zoneId, floorId);
+    if (!floor || floor.unlocked) return { ok: false };
+    if (!def.unlock) { floor.unlocked = true; return { ok: true }; }
+    if (def.unlock.type === "money") {
+      if (state.money < def.unlock.amount) return { ok: false, reason: "money", cost: def.unlock.amount };
+      state.money -= def.unlock.amount;
+      floor.unlocked = true;
+      return { ok: true };
+    }
+    return { ok: false };
+  }
+
+  // ---- Rooms -----------------------------------------------------------------
+  function upgradeRoom(state, roomId) {
+    const def = D.ROOMS[roomId];
+    if (!def) return { ok: false, reason: "invalid" };
+    const cur = state.rooms[roomId].level;
+    if (cur >= def.maxLevel) return { ok: false, reason: "max" };
+    const cost = E.roomCost(roomId, cur);
+    if (state.money < cost) return { ok: false, reason: "money", cost };
+    state.money -= cost;
+    state.rooms[roomId].level = cur + 1;
+    return { ok: true, cost, newLevel: cur + 1 };
+  }
+
+  // ---- Collection ---------------------------------------------------------
+  function grantMoney(state, amount) {
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    state.money += amount;
+    state.maxMoney = Math.max(state.maxMoney, state.money);
+    state.totalEarned += amount;
+    state.lifetimeEarned += amount;
+  }
+
+  function collectMachine(state, zoneId, floorId, r, c) {
+    const floor = getFloor(state, zoneId, floorId);
+    if (!floor) return { amount: 0 };
+    const slot = floor.grid.find((s) => s.r === r && s.c === c);
+    if (!slot || !slot.machine || slot.machine.banked <= 0) return { amount: 0 };
+    const amount = slot.machine.banked;
+    slot.machine.banked = 0;
+    grantMoney(state, amount);
+    state.stats.totalClicks++;
+    return { amount };
+  }
+
+  function collectFloor(state, zoneId, floorId) {
+    const floor = getFloor(state, zoneId, floorId);
+    if (!floor) return 0;
+    let total = 0;
+    floor.grid.forEach((s) => {
+      if (s.machine && s.machine.banked > 0) { total += s.machine.banked; s.machine.banked = 0; }
+    });
+    grantMoney(state, total);
+    return total;
+  }
+
+  function collectAllUnlocked(state) {
+    let total = 0;
+    state.zones.forEach((z) => { if (z.unlocked) z.floors.forEach((f) => { if (f.unlocked) total += collectFloor(state, z.id, f.id); }); });
+    return total;
+  }
+
+  // ---- Core production tick (used by live loop, called every frame) --------
+  // events: array the caller can push {type,...} onto for render/audio hooks.
+  function tickFloor(state, zone, floor, dt, events) {
+    const outMult = E.floorOutputMult(floor);
+    const hasCollector = floor.systems.collector > 0;
+    const r = rt(floor.id);
+
+    floor.grid.forEach((slot) => {
+      const m = slot.machine;
+      if (!m) return;
+      const cooldown = E.machineCooldown(m, state);
+      m.progress += dt / cooldown;
+      while (m.progress >= 1) {
+        m.progress -= 1;
+        let yieldAmt = E.machineBaseYield(m, outMult, state);
+        let isCrit = Math.random() < E.machineCritChance(m, state);
+        if (isCrit) yieldAmt *= E.machineCritMult(m);
+        m.banked += yieldAmt;
+        if (events) events.push({ type: "cycle", zoneId: zone.id, floorId: floor.id, r: slot.r, c: slot.c, amount: yieldAmt, crit: isCrit });
+      }
+    });
+
+    if (hasCollector) {
+      const tickSec = E.collectorTickSeconds(floor, state);
+      r.collectorTimer += dt;
+      if (tickSec && r.collectorTimer >= tickSec) {
+        r.collectorTimer = 0;
+        const total = collectFloor(state, zone.id, floor.id);
+        if (total > 0 && events) events.push({ type: "autocollect", zoneId: zone.id, floorId: floor.id, amount: total });
+      }
+    }
+
+    // Random bonus drop timer (only meaningful on the currently viewed floor,
+    // but we run it for all unlocked floors so it's consistent with idle sim).
+    r.bonusTimer -= dt;
+    if (r.bonusTimer <= 0) {
+      r.bonusTimer = 12 + Math.random() * 18;
+      const occupied = floor.grid.filter((s) => s.machine);
+      if (occupied.length > 0 && events) {
+        const pick = occupied[Math.floor(Math.random() * occupied.length)];
+        events.push({ type: "bonusReady", zoneId: zone.id, floorId: floor.id, r: pick.r, c: pick.c });
+      }
+    }
+  }
+
+  function tick(state, dt) {
+    const events = [];
+    state.zones.forEach((zone) => {
+      if (!zone.unlocked) return;
+      zone.floors.forEach((floor) => {
+        if (!floor.unlocked) return;
+        tickFloor(state, zone, floor, dt, events);
+      });
+    });
+    // R&D research accrual
+    const rndRate = E.rndRatePerSec(state);
+    if (rndRate > 0) state.research += rndRate * dt;
+    // Vault passive interest, applied continuously (per-hour rate -> per-second)
+    const interestPerHour = E.vaultInterestPerHour(state);
+    if (interestPerHour > 0 && state.money > 0) {
+      grantMoney(state, state.money * (interestPerHour / 3600) * dt);
+    }
+    state.stats.playTimeSeconds += dt;
+    return events;
+  }
+
+  // ---- Offline simulation ----------------------------------------------------
+  // Deterministic closed-form estimate (not stepped) for performance & to
+  // avoid needing to replay potentially many real-world hours tick by tick.
+  function computeFloorMps(state, zone, floor) {
+    const outMult = E.floorOutputMult(floor);
+    let mps = 0;
+    floor.grid.forEach((slot) => {
+      const m = slot.machine;
+      if (!m) return;
+      const cooldown = E.machineCooldown(m, state);
+      const avgYield = E.machineBaseYield(m, outMult, state) * (1 + E.machineCritChance(m, state) * (E.machineCritMult(m) - 1));
+      mps += avgYield / cooldown;
+    });
+    // Offline mode is an abstract idle estimate: collectors improve cash conversion,
+    // while manual floors still retain a reduced passive efficiency.
+    const efficiency = floor.systems.collector > 0 ? 0.75 : 0.35;
+    return mps * efficiency;
+  }
+
+  function simulateOfflineEarnings(state, elapsedSeconds) {
+    if (!Number.isFinite(elapsedSeconds) || elapsedSeconds <= 0) return { amount: 0, production: 0, cappedSeconds: 0, capHours: E.vaultOfflineCapHours(state), researchGained: 0, interestGained: 0, wasCapped: false };
+    const capHours = E.vaultOfflineCapHours(state);
+    const cappedSeconds = Math.min(elapsedSeconds, capHours * 3600);
+
+    let totalMps = 0;
+    state.zones.forEach((zone) => {
+      if (!zone.unlocked) return;
+      zone.floors.forEach((floor) => {
+        if (!floor.unlocked) return;
+        totalMps += computeFloorMps(state, zone, floor);
+      });
+    });
+
+    const production = totalMps * cappedSeconds;
+    const interestPerHour = E.vaultInterestPerHour(state);
+    const ratePerSecond = interestPerHour / 3600;
+    const interestGained = interestPerHour > 0
+      ? (state.money + totalMps / ratePerSecond) * Math.exp(ratePerSecond * cappedSeconds) - state.money - totalMps / ratePerSecond
+      : 0;
+    const researchGained = E.rndRatePerSec(state) * cappedSeconds;
+
+    return {
+      amount: production + interestGained,
+      production,
+      interestGained,
+      researchGained,
+      cappedSeconds,
+      capHours,
+      wasCapped: elapsedSeconds > cappedSeconds,
+    };
+  }
+
+  function applyOfflineEarnings(state, result) {
+    if (result.amount > 0) grantMoney(state, result.amount);
+    if (result.researchGained > 0) state.research += result.researchGained;
+  }
+
+  // ---- Prestige (rebirth) -----------------------------------------------------
+  function doPrestige(state) {
+    if (!E.prestigeUnlocked(state)) return { ok: false };
+    const gain = E.prestigeGain(state);
+    const techKeep = state.prestige.tech;
+    const eff = E.techEffects(state);
+
+    const fresh = G.State.defaultState();
+    fresh.settings = state.settings;
+    fresh.prestige.count = state.prestige.count + 1;
+    fresh.prestige.perkPoints = state.prestige.perkPoints + gain;
+    fresh.prestige.tech = techKeep;
+    fresh.money = 50 * (1 + eff.startingMoneyMult);
+    fresh.maxMoney = fresh.money;
+    fresh.lifetimeEarned = state.lifetimeEarned;
+    fresh.research = state.research;
+    fresh.selectedTierId = "common";
+    fresh.stats = state.stats; // keep lifetime stats
+
+    Object.keys(floorRuntime).forEach((k) => delete floorRuntime[k]);
+
+    return { ok: true, gain, newState: fresh };
+  }
+
+  // ---- Tech tree purchase ---------------------------------------------------
+  function buyTech(state, techId) {
+    const tech = D.techById(techId);
+    if (!tech) return { ok: false };
+    if (state.prestige.tech[techId]) return { ok: false, reason: "owned" };
+    if (!E.techRequirementsMet(state, tech)) return { ok: false, reason: "requires" };
+    const purchaseReason = E.techPurchaseReason(state, tech);
+    if (purchaseReason) return { ok: false, reason: purchaseReason };
+    state.prestige.perkPoints -= tech.cost;
+    state.research -= tech.researchCost;
+    state.prestige.tech[techId] = true;
+    return { ok: true };
+  }
+
+  G.Factory = {
+    getZone, getFloor, currentZone, currentFloor,
+    canPlaceMachine, placeMachine, upgradeMachine,
+    buyFloorSystem, unlockZone, unlockFloor, upgradeRoom,
+    collectMachine, collectFloor, collectAllUnlocked, grantMoney,
+    tick, tickFloor,
+    simulateOfflineEarnings, applyOfflineEarnings,
+    doPrestige, buyTech,
+    resetRuntime() { Object.keys(floorRuntime).forEach((k) => delete floorRuntime[k]); },
+  };
+})(window.Game = window.Game || {});
+
+
+/* ---- src/08-audio.js ---- */
+/* ============================================================
+   08-audio.js — All audio is synthesized with the Web Audio API;
+   no external audio files. Covers SFX (machine hum, cash, clicks,
+   upgrades) and a generative chiptune background loop.
+   ============================================================ */
+(function (G) {
+  "use strict";
+
+  let ctx = null;
+  let masterGain, sfxGain, musicGain;
+  let unlocked = false;
+  let musicEnabled = true, sfxEnabled = true;
+  let musicTimer = null;
+  let humNodes = new Map(); // key -> {osc, gain}
+
+  function ensureCtx() {
+    if (ctx) return ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 1;
+    masterGain.connect(ctx.destination);
+
+    sfxGain = ctx.createGain();
+    sfxGain.gain.value = 0.7;
+    sfxGain.connect(masterGain);
+
+    musicGain = ctx.createGain();
+    musicGain.gain.value = 0.35;
+    musicGain.connect(masterGain);
+    return ctx;
+  }
+
+  function unlock() {
+    const c = ensureCtx();
+    if (!c) return;
+    if (c.state === "suspended") c.resume();
+    unlocked = true;
+  }
+
+  function setSfxEnabled(v) { sfxEnabled = v; }
+  function setMusicEnabled(v) {
+    musicEnabled = v;
+    if (!v) stopMusic(); else startMusic();
+  }
+  function setSfxVolume(v) { if (sfxGain) sfxGain.gain.value = v; }
+  function setMusicVolume(v) { if (musicGain) musicGain.gain.value = v; }
+
+  // ---- Generic tone helper -------------------------------------------------
+  function tone({ freq = 440, type = "sine", dur = 0.15, gain = 0.3, slideTo = null, delay = 0, attack = 0.005, decay = null }) {
+    if (!sfxEnabled) return;
+    const c = ensureCtx();
+    if (!c) return;
+    const t0 = c.currentTime + delay;
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + (decay || dur));
+    osc.connect(g);
+    g.connect(sfxGain);
+    osc.start(t0);
+    osc.stop(t0 + (decay || dur) + 0.05);
+  }
+
+  function noiseBurst({ dur = 0.12, gain = 0.2, delay = 0, filterFreq = 2000 }) {
+    if (!sfxEnabled) return;
+    const c = ensureCtx();
+    if (!c) return;
+    const t0 = c.currentTime + delay;
+    const bufferSize = c.sampleRate * dur;
+    const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    const src = c.createBufferSource();
+    src.buffer = buffer;
+    const filt = c.createBiquadFilter();
+    filt.type = "lowpass";
+    filt.frequency.value = filterFreq;
+    const g = c.createGain();
+    g.gain.setValueAtTime(gain, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filt);
+    filt.connect(g);
+    g.connect(sfxGain);
+    src.start(t0);
+    src.stop(t0 + dur + 0.02);
+  }
+
+  // ---- Specific SFX ---------------------------------------------------------
+  function sfxClick() { tone({ freq: 700, type: "square", dur: 0.06, gain: 0.15 }); }
+  function sfxCollect(amountFactor) {
+    // amountFactor 0..1 roughly maps to pitch/brightness of the "cash" chime
+    const base = 520 + Math.min(1, amountFactor) * 300;
+    tone({ freq: base, type: "triangle", dur: 0.12, gain: 0.22, slideTo: base * 1.6 });
+    tone({ freq: base * 1.5, type: "sine", dur: 0.18, gain: 0.12, delay: 0.03, slideTo: base * 2 });
+  }
+  function sfxCrit() {
+    tone({ freq: 660, type: "sawtooth", dur: 0.08, gain: 0.2 });
+    tone({ freq: 990, type: "sawtooth", dur: 0.12, gain: 0.18, delay: 0.06 });
+    tone({ freq: 1320, type: "sine", dur: 0.2, gain: 0.15, delay: 0.12 });
+  }
+  function sfxPlaceMachine() {
+    noiseBurst({ dur: 0.1, gain: 0.25, filterFreq: 1200 });
+    tone({ freq: 220, type: "square", dur: 0.1, gain: 0.15, delay: 0.03, slideTo: 440 });
+  }
+  function sfxUpgrade() {
+    [0, 0.07, 0.14].forEach((d, i) => tone({ freq: 440 + i * 160, type: "square", dur: 0.09, gain: 0.16, delay: d }));
+  }
+  function sfxUnlock() {
+    [0, 0.09, 0.18, 0.27].forEach((d, i) => tone({ freq: 392 * Math.pow(2, i / 12) * 2, type: "triangle", dur: 0.15, gain: 0.18, delay: d }));
+  }
+  function sfxError() {
+    tone({ freq: 180, type: "sawtooth", dur: 0.18, gain: 0.18, slideTo: 90 });
+  }
+  function sfxPrestige() {
+    const notes = [261, 329, 392, 523, 659, 784];
+    notes.forEach((f, i) => tone({ freq: f, type: "sine", dur: 0.35, gain: 0.15, delay: i * 0.08, slideTo: f * 2 }));
+    noiseBurst({ dur: 0.6, gain: 0.15, filterFreq: 4000, delay: 0.1 });
+  }
+  function sfxTechUnlock() {
+    tone({ freq: 300, type: "sine", dur: 0.25, gain: 0.16, slideTo: 900 });
+  }
+  function sfxBonus() {
+    [0, 0.05, 0.1].forEach((d, i) => tone({ freq: 880 + i * 220, type: "sine", dur: 0.12, gain: 0.16, delay: d }));
+  }
+
+  // ---- Machine hum loop (per-machine ambient drone, subtle) -----------------
+  function startHum(key, tierOrder) {
+    const c = ensureCtx();
+    if (!c || humNodes.has(key)) return;
+    if (humNodes.size > 24) return; // cap concurrent hums for perf
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 70 + tierOrder * 12;
+    g.gain.value = 0;
+    osc.connect(g);
+    g.connect(sfxGain);
+    osc.start();
+    g.gain.linearRampToValueAtTime(0.015 + tierOrder * 0.004, c.currentTime + 0.4);
+    humNodes.set(key, { osc, gain: g });
+  }
+  function stopHum(key) {
+    const n = humNodes.get(key);
+    if (!n) return;
+    const c = ctx;
+    try {
+      n.gain.gain.linearRampToValueAtTime(0, c.currentTime + 0.3);
+      n.osc.stop(c.currentTime + 0.35);
+    } catch (e) { /* ignore */ }
+    humNodes.delete(key);
+  }
+  function stopAllHums() { Array.from(humNodes.keys()).forEach(stopHum); }
+
+  // ---- Generative chiptune background music ---------------------------------
+  const SCALE = [0, 2, 4, 7, 9, 12, 14, 16]; // major pentatonic-ish, extended
+  let musicStep = 0;
+  function scheduleMusicStep() {
+    if (!musicEnabled || !sfxEnabled === undefined) {}
+    if (!musicEnabled) return;
+    const c = ensureCtx();
+    if (!c) return;
+    const root = 220;
+    const degree = SCALE[musicStep % SCALE.length];
+    const freq = root * Math.pow(2, degree / 12);
+    const t0 = c.currentTime;
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = musicStep % 4 === 0 ? "square" : "triangle";
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+    osc.connect(g);
+    g.connect(musicGain);
+    osc.start(t0);
+    osc.stop(t0 + 0.25);
+
+    if (musicStep % 8 === 0) {
+      const bass = c.createOscillator();
+      const bg = c.createGain();
+      bass.type = "sine";
+      bass.frequency.value = root / 2;
+      bg.gain.setValueAtTime(0.0001, t0);
+      bg.gain.exponentialRampToValueAtTime(0.18, t0 + 0.03);
+      bg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
+      bass.connect(bg);
+      bg.connect(musicGain);
+      bass.start(t0);
+      bass.stop(t0 + 0.55);
+    }
+    musicStep++;
+  }
+  function startMusic() {
+    if (musicTimer || !musicEnabled) return;
+    const c = ensureCtx();
+    if (!c) return;
+    musicTimer = setInterval(scheduleMusicStep, 260);
+  }
+  function stopMusic() {
+    if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+  }
+
+  G.Audio = {
+    unlock, setSfxEnabled, setMusicEnabled, setSfxVolume, setMusicVolume,
+    sfxClick, sfxCollect, sfxCrit, sfxPlaceMachine, sfxUpgrade, sfxUnlock,
+    sfxError, sfxPrestige, sfxTechUnlock, sfxBonus,
+    startHum, stopHum, stopAllHums,
+    startMusic, stopMusic,
+    get isUnlocked() { return unlocked; },
+  };
+})(window.Game = window.Game || {});
+
+
+/* ---- src/09-render.js ---- */
+/* ============================================================
+   09-render.js — Procedural vector-style Canvas rendering.
+   Everything (machines, gears, conveyors, smoke, floating cash)
+   is drawn with Canvas primitives — no external art assets.
+   Uses object pooling for particles/floating text (perf, spec 15).
+   ============================================================ */
+(function (G) {
+  "use strict";
+  const D = G.DATA;
+  const E = G.Econ;
+
+  const CELL = 148;         // world-space cell size in px at zoom 1
+  const MACHINE_PAD = 14;
+
+  let canvas, ctx, dpr = 1;
+  let camera = { x: 0, y: 0, zoom: 1 };
+  let hoverSlot = null;
+  let selectedSlot = null;
+  let timeAcc = 0;
+
+  // ---- Object pools ---------------------------------------------------------
+  const MAX_PARTICLES = 220;
+  const particles = new Array(MAX_PARTICLES).fill(null).map(() => ({ active: false }));
+  const MAX_FLOATERS = 60;
+  const floaters = new Array(MAX_FLOATERS).fill(null).map(() => ({ active: false }));
+
+  function spawnParticle(spec) {
+    for (let i = 0; i < particles.length; i++) {
+      if (!particles[i].active) {
+        Object.assign(particles[i], spec, { active: true, age: 0 });
+        return;
+      }
+    }
+  }
+  function spawnFloater(spec) {
+    for (let i = 0; i < floaters.length; i++) {
+      if (!floaters[i].active) {
+        Object.assign(floaters[i], spec, { active: true, age: 0 });
+        return;
+      }
+    }
+  }
+
+  function init(canvasEl) {
+    canvas = canvasEl;
+    ctx = canvas.getContext("2d");
+    resize();
+  }
+
+  function resize() {
+    if (!canvas) return;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    canvas.style.width = rect.width + "px";
+    canvas.style.height = rect.height + "px";
+  }
+
+  function setCamera(c) { camera = c; }
+  function setHover(slot) { hoverSlot = slot; }
+  function setSelected(slot) { selectedSlot = slot; }
+
+  function worldToScreen(wx, wy) {
+    const rect = canvas;
+    const cx = rect.width / 2 / dpr;
+    const cy = rect.height / 2 / dpr;
+    return {
+      x: cx + (wx - camera.x) * camera.zoom,
+      y: cy + (wy - camera.y) * camera.zoom,
+    };
+  }
+  function screenToWorld(sx, sy) {
+    const rect = canvas;
+    const cx = rect.width / 2 / dpr;
+    const cy = rect.height / 2 / dpr;
+    return {
+      x: camera.x + (sx - cx) / camera.zoom,
+      y: camera.y + (sy - cy) / camera.zoom,
+    };
+  }
+
+  function gridWorldBounds() {
+    const w = D.GRID_COLS * CELL, h = D.GRID_ROWS * CELL;
+    return { w, h, x0: -w / 2, y0: -h / 2 };
+  }
+
+  function slotWorldPos(r, c) {
+    const b = gridWorldBounds();
+    return { x: b.x0 + c * CELL + CELL / 2, y: b.y0 + r * CELL + CELL / 2 };
+  }
+
+  function slotAtWorld(wx, wy) {
+    const b = gridWorldBounds();
+    const c = Math.floor((wx - b.x0) / CELL);
+    const r = Math.floor((wy - b.y0) / CELL);
+    if (r < 0 || r >= D.GRID_ROWS || c < 0 || c >= D.GRID_COLS) return null;
+    return { r, c };
+  }
+
+  function slotAtScreen(sx, sy) {
+    const w = screenToWorld(sx, sy);
+    return slotAtWorld(w.x, w.y);
+  }
+
+  // ---- Drawing helpers --------------------------------------------------------
+  function roundRect(x, y, w, h, rad) {
+    ctx.beginPath();
+    ctx.moveTo(x + rad, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rad);
+    ctx.arcTo(x + w, y + h, x, y + h, rad);
+    ctx.arcTo(x, y + h, x, y, rad);
+    ctx.arcTo(x, y, x + w, y, rad);
+    ctx.closePath();
+  }
+
+  function drawGear(cx, cy, radius, teeth, rotation, color) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    const inner = radius * 0.62;
+    const toothH = radius * 0.34;
+    for (let i = 0; i < teeth; i++) {
+      const a0 = (i / teeth) * Math.PI * 2;
+      const a1 = a0 + (Math.PI * 2) / teeth / 2;
+      const a2 = a0 + (Math.PI * 2) / teeth;
+      ctx.lineTo(Math.cos(a0) * radius, Math.sin(a0) * radius);
+      ctx.lineTo(Math.cos(a1) * (radius + toothH), Math.sin(a1) * (radius + toothH));
+      ctx.lineTo(Math.cos(a2) * radius, Math.sin(a2) * radius);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 0, inner, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFloorBackground(floor) {
+    const b = gridWorldBounds();
+    const tl = worldToScreen(b.x0 - CELL * 0.6, b.y0 - CELL * 0.6);
+    const br = worldToScreen(b.x0 + b.w + CELL * 0.6, b.y0 + b.h + CELL * 0.6);
+
+    ctx.fillStyle = "#171b22";
+    ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
+    // floor slab
+    ctx.fillStyle = "#22262f";
+    roundRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y, 18 * camera.zoom);
+    ctx.fill();
+
+    // grid tiles (checker, subtle)
+    for (let r = 0; r < D.GRID_ROWS; r++) {
+      for (let c = 0; c < D.GRID_COLS; c++) {
+        const p = slotWorldPos(r, c);
+        const s = worldToScreen(p.x - CELL / 2, p.y - CELL / 2);
+        const size = CELL * camera.zoom;
+        ctx.fillStyle = (r + c) % 2 === 0 ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.045)";
+        ctx.fillRect(s.x, s.y, size, size);
+      }
+    }
+
+    // conveyor belts along each row if floor has conveyor level
+    if (floor.systems.conveyor > 0) {
+      for (let r = 0; r < D.GRID_ROWS; r++) {
+        const left = slotWorldPos(r, 0);
+        const right = slotWorldPos(r, D.GRID_COLS - 1);
+        const sL = worldToScreen(left.x - CELL / 2, left.y + CELL * 0.34);
+        const sR = worldToScreen(right.x + CELL / 2, right.y + CELL * 0.44);
+        drawConveyorStrip(sL.x, sL.y, sR.x - sL.x, (sR.y - sL.y) + 14 * camera.zoom, floor.systems.conveyor);
+      }
+    }
+
+    // grid outline
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 1;
+    for (let r = 0; r <= D.GRID_ROWS; r++) {
+      const p1 = worldToScreen(b.x0, b.y0 + r * CELL);
+      const p2 = worldToScreen(b.x0 + b.w, b.y0 + r * CELL);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    }
+    for (let c = 0; c <= D.GRID_COLS; c++) {
+      const p1 = worldToScreen(b.x0 + c * CELL, b.y0);
+      const p2 = worldToScreen(b.x0 + c * CELL, b.y0 + b.h);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    }
+  }
+
+  function drawConveyorStrip(x, y, w, h, level) {
+    ctx.save();
+    ctx.fillStyle = "#12151b";
+    roundRect(x, y, w, Math.max(6, h * 0.4), 4);
+    ctx.fill();
+    ctx.strokeStyle = "#3a4250";
+    ctx.lineWidth = 2;
+    roundRect(x, y, w, Math.max(6, h * 0.4), 4);
+    ctx.stroke();
+    const dashLen = 18 * camera.zoom;
+    const speed = 40 * (1 + level * 0.25);
+    const offset = (timeAcc * speed) % (dashLen * 2);
+    ctx.strokeStyle = "#ffcf6b";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([dashLen * 0.5, dashLen * 0.5]);
+    ctx.lineDashOffset = -offset;
+    ctx.beginPath();
+    ctx.moveTo(x + 4, y + Math.max(6, h * 0.4) / 2);
+    ctx.lineTo(x + w - 4, y + Math.max(6, h * 0.4) / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  function drawEmptySlot(r, c, tierIdForGhost) {
+    const p = slotWorldPos(r, c);
+    const s = worldToScreen(p.x, p.y);
+    const size = (CELL - MACHINE_PAD * 2) * camera.zoom;
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = "#5865f2";
+    ctx.setLineDash([6, 6]);
+    ctx.lineWidth = 2;
+    roundRect(s.x - size / 2, s.y - size / 2, size, size, 12 * camera.zoom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = "#5865f2";
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 10 * camera.zoom, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "white";
+    ctx.font = `${16 * camera.zoom}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("+", s.x, s.y - 1 * camera.zoom);
+    ctx.restore();
+  }
+
+  function drawMachine(slot, isHover, isSelected) {
+    const m = slot.machine;
+    const tier = D.tierById(m.tierId);
+    const p = slotWorldPos(slot.r, slot.c);
+    const s = worldToScreen(p.x, p.y);
+    const size = (CELL - MACHINE_PAD * 2) * camera.zoom;
+    const bodyH = size * 0.62;
+
+    ctx.save();
+
+    // glow for higher tiers
+    if (tier.order >= 2) {
+      const grad = ctx.createRadialGradient(s.x, s.y, size * 0.1, s.x, s.y, size * 0.75);
+      grad.addColorStop(0, hexAlpha(tier.glow, 0.28));
+      grad.addColorStop(1, hexAlpha(tier.glow, 0));
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, size * 0.75, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // shadow
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.beginPath();
+    ctx.ellipse(s.x, s.y + size * 0.34, size * 0.38, size * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // body
+    const bx = s.x - size * 0.42, by = s.y - bodyH * 0.55;
+    const grad2 = ctx.createLinearGradient(bx, by, bx, by + bodyH);
+    grad2.addColorStop(0, shade(tier.color, 18));
+    grad2.addColorStop(1, shade(tier.color, -18));
+    ctx.fillStyle = grad2;
+    roundRect(bx, by, size * 0.84, bodyH, 8 * camera.zoom);
+    ctx.fill();
+    ctx.strokeStyle = isSelected ? "#ffffff" : isHover ? hexAlpha("#ffffff", 0.6) : "rgba(0,0,0,0.35)";
+    ctx.lineWidth = isSelected ? 3 : 1.5;
+    roundRect(bx, by, size * 0.84, bodyH, 8 * camera.zoom);
+    ctx.stroke();
+
+    // paper output slot
+    ctx.fillStyle = "#12151b";
+    roundRect(bx + size * 0.1, by + bodyH * 0.62, size * 0.64, bodyH * 0.22, 3 * camera.zoom);
+    ctx.fill();
+    // paper sliding out animated by progress
+    const paperProgress = m.progress;
+    ctx.save();
+    ctx.beginPath();
+    roundRect(bx + size * 0.1, by + bodyH * 0.62, size * 0.64, bodyH * 0.22, 3 * camera.zoom);
+    ctx.clip();
+    ctx.fillStyle = "#eef1e6";
+    const paperW = size * 0.3;
+    const px = bx + size * 0.1 + paperProgress * (size * 0.64 + paperW) - paperW;
+    ctx.fillRect(px, by + bodyH * 0.62, paperW, bodyH * 0.22);
+    ctx.strokeStyle = "#9aa08c";
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(px + (paperW * i) / 3, by + bodyH * 0.66);
+      ctx.lineTo(px + (paperW * i) / 3, by + bodyH * 0.8);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // gear
+    const gearR = size * 0.16;
+    const rot = timeAcc * (1.4 + tier.order * 0.5) * (m.banked > 0 ? 1.6 : 1);
+    drawGear(s.x + size * 0.24, by + bodyH * 0.28, gearR, 8, rot, shade(tier.color, -35));
+    drawGear(s.x + size * 0.24 - gearR * 1.3, by + bodyH * 0.28 + gearR * 0.2, gearR * 0.65, 6, -rot * 1.4, shade(tier.color, -50));
+
+    // tier label chip
+    ctx.fillStyle = shade(tier.color, -45);
+    roundRect(bx + 4 * camera.zoom, by + 4 * camera.zoom, size * 0.28, bodyH * 0.16, 4 * camera.zoom);
+    ctx.fill();
+
+    // progress ring (small, top-right)
+    const ringR = size * 0.1;
+    const ringCx = bx + size * 0.84 - ringR - 4 * camera.zoom;
+    const ringCy = by + ringR + 4 * camera.zoom;
+    ctx.beginPath();
+    ctx.arc(ringCx, ringCy, ringR, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(0,0,0,0.4)";
+    ctx.lineWidth = 3 * camera.zoom;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(ringCx, ringCy, ringR, -Math.PI / 2, -Math.PI / 2 + m.progress * Math.PI * 2);
+    ctx.strokeStyle = "#ffe27a";
+    ctx.lineWidth = 3 * camera.zoom;
+    ctx.stroke();
+
+    // banked cash stack indicator
+    if (m.banked > 0) {
+      const bcx = s.x, bcy = by - 10 * camera.zoom;
+      const pulse = 1 + Math.sin(timeAcc * 6) * 0.06;
+      ctx.save();
+      ctx.translate(bcx, bcy);
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = "#2fae59";
+      roundRect(-16 * camera.zoom, -10 * camera.zoom, 32 * camera.zoom, 20 * camera.zoom, 3 * camera.zoom);
+      ctx.fill();
+      ctx.strokeStyle = "#1d7a3d";
+      ctx.lineWidth = 1.5;
+      roundRect(-16 * camera.zoom, -10 * camera.zoom, 32 * camera.zoom, 20 * camera.zoom, 3 * camera.zoom);
+      ctx.stroke();
+      ctx.fillStyle = "#eafff0";
+      ctx.font = `bold ${11 * camera.zoom}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("$", 0, 1);
+      ctx.restore();
+
+      // faint upward cash label
+      ctx.fillStyle = "#ffe27a";
+      ctx.font = `bold ${12 * camera.zoom}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText(E.formatMoney(m.banked), bcx, bcy - 18 * camera.zoom);
+    }
+
+    // idle smoke puffs from higher tier machines
+    if (tier.order >= 1 && Math.random() < 0.02 * tier.particleDensity) {
+      spawnParticle({
+        kind: "smoke",
+        x: s.x + (Math.random() - 0.5) * size * 0.3,
+        y: by,
+        vx: (Math.random() - 0.5) * 6,
+        vy: -18 - Math.random() * 10,
+        life: 1.4 + Math.random() * 0.6,
+        size: 6 * camera.zoom + Math.random() * 4,
+        color: "rgba(255,255,255,0.25)",
+      });
+    }
+
+    ctx.restore();
+  }
+
+  function shade(hex, percent) {
+    const num = parseInt(hex.replace("#", ""), 16);
+    let r = (num >> 16) + Math.round((percent / 100) * 255);
+    let g = ((num >> 8) & 0x00ff) + Math.round((percent / 100) * 255);
+    let b = (num & 0x0000ff) + Math.round((percent / 100) * 255);
+    r = Math.max(0, Math.min(255, r));
+    g = Math.max(0, Math.min(255, g));
+    b = Math.max(0, Math.min(255, b));
+    return `rgb(${r},${g},${b})`;
+  }
+  function hexAlpha(hex, a) {
+    const num = parseInt(hex.replace("#", ""), 16);
+    const r = num >> 16, g = (num >> 8) & 0x00ff, b = num & 0x0000ff;
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function updateAndDrawParticles(dt) {
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      if (!p.active) continue;
+      p.age += dt;
+      if (p.age >= p.life) { p.active = false; continue; }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      const t = p.age / p.life;
+      ctx.save();
+      ctx.globalAlpha = (1 - t) * 0.7;
+      ctx.fillStyle = p.color || "rgba(255,255,255,0.3)";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (1 + t * 0.8), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function updateAndDrawFloaters(dt) {
+    for (let i = 0; i < floaters.length; i++) {
+      const f = floaters[i];
+      if (!f.active) continue;
+      f.age += dt;
+      if (f.age >= f.life) { f.active = false; continue; }
+      const t = f.age / f.life;
+      const y = f.y - t * 46 * camera.zoom;
+      ctx.save();
+      ctx.globalAlpha = 1 - t;
+      ctx.font = `bold ${(f.crit ? 20 : 15) * camera.zoom}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillStyle = f.color || "#ffe27a";
+      ctx.strokeStyle = "rgba(0,0,0,0.6)";
+      ctx.lineWidth = 3;
+      ctx.strokeText(f.text, f.x, y);
+      ctx.fillText(f.text, f.x, y);
+      ctx.restore();
+    }
+  }
+
+  function spawnCollectFloater(worldX, worldY, amount, crit) {
+    const s = worldToScreen(worldX, worldY);
+    spawnFloater({ x: s.x, y: s.y, text: (crit ? "\u2605 " : "+") + G.Econ.formatMoney(amount), life: 0.9, crit, color: crit ? "#ff9d3d" : "#8dffb0" });
+  }
+  function spawnBonusIcon(worldX, worldY) {
+    const s = worldToScreen(worldX, worldY);
+    spawnFloater({ x: s.x, y: s.y - 30, text: "\u2726 Bonus!", life: 1.6, crit: true, color: "#ff5da2" });
+  }
+
+  function drawBonusMarker(slot) {
+    const p = slotWorldPos(slot.r, slot.c);
+    const s = worldToScreen(p.x, p.y - CELL * 0.42);
+    const bob = Math.sin(timeAcc * 4) * 4 * camera.zoom;
+    ctx.save();
+    ctx.translate(s.x, s.y + bob);
+    ctx.rotate(Math.sin(timeAcc * 3) * 0.2);
+    ctx.fillStyle = "#ff5da2";
+    ctx.beginPath();
+    star(0, 0, 5, 14 * camera.zoom, 6 * camera.zoom);
+    ctx.fill();
+    ctx.strokeStyle = "#ffd3ea";
+    ctx.lineWidth = 2;
+    star(0, 0, 5, 14 * camera.zoom, 6 * camera.zoom);
+    ctx.stroke();
+    ctx.restore();
+  }
+  function star(cx, cy, spikes, outerR, innerR) {
+    let rot = (Math.PI / 2) * 3;
+    const step = Math.PI / spikes;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - outerR);
+    for (let i = 0; i < spikes; i++) {
+      let x = cx + Math.cos(rot) * outerR, y = cy + Math.sin(rot) * outerR;
+      ctx.lineTo(x, y); rot += step;
+      x = cx + Math.cos(rot) * innerR; y = cy + Math.sin(rot) * innerR;
+      ctx.lineTo(x, y); rot += step;
+    }
+    ctx.lineTo(cx, cy - outerR);
+    ctx.closePath();
+  }
+
+  // ---- Main frame render -------------------------------------------------------
+  function render(state, floor, dt, bonusSlotKey) {
+    if (!ctx) return;
+    timeAcc += dt;
+    ctx.save();
+    ctx.scale(dpr, dpr);
+
+    drawFloorBackground(floor);
+
+    floor.grid.forEach((slot) => {
+      const isHover = hoverSlot && hoverSlot.r === slot.r && hoverSlot.c === slot.c;
+      const isSelected = selectedSlot && selectedSlot.r === slot.r && selectedSlot.c === slot.c;
+      if (slot.machine) {
+        drawMachine(slot, isHover, isSelected);
+        if (bonusSlotKey === slot.r + "_" + slot.c) drawBonusMarker(slot);
+      } else {
+        drawEmptySlot(slot.r, slot.c);
+      }
+    });
+
+    updateAndDrawParticles(dt);
+    updateAndDrawFloaters(dt);
+
+    ctx.restore();
+  }
+
+  G.Render = {
+    init, resize, setCamera, setHover, setSelected,
+    worldToScreen, screenToWorld, slotAtScreen, slotAtWorld, slotWorldPos, gridWorldBounds,
+    render, spawnCollectFloater, spawnBonusIcon, spawnParticle,
+    CELL,
+  };
+})(window.Game = window.Game || {});
+
+
+/* ---- src/10-input.js ---- */
+/* ============================================================
+   10-input.js — Adaptive input: keyboard, mouse and touch controls.
+   ============================================================ */
+(function (G) {
+  "use strict";
+
+  const PAN_SPEED = 620; // world units/sec at zoom 1
+  const ZOOM_MIN = 0.55, ZOOM_MAX = 2.3;
+
+  let canvas;
+  let camera = { x: 0, y: 0, zoom: 1 };
+  let keys = {};
+  let dragging = false, dragMoved = false, lastPointer = null;
+  let callbacks = {};
+
+  function init(opts) {
+    canvas = opts.canvas;
+    camera = opts.camera;
+    callbacks = opts.callbacks || {};
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", clearKeys);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState !== "visible") clearKeys(); });
+
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd, { passive: false });
+    canvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
+  }
+
+  function onKeyDown(e) {
+    if (isTypingTarget(e.target)) return;
+    if (callbacks.isInputBlocked && callbacks.isInputBlocked()) return;
+    keys[e.code] = true;
+    if (e.code === "Space") {
+      e.preventDefault();
+      callbacks.onCollectNearest && callbacks.onCollectNearest();
+    }
+    const numMatch = e.code.match(/^Digit([1-5])$/);
+    if (numMatch) {
+      callbacks.onSelectTierIndex && callbacks.onSelectTierIndex(parseInt(numMatch[1], 10) - 1);
+    }
+  }
+  function onKeyUp(e) { keys[e.code] = false; }
+  function clearKeys() { keys = {}; }
+  function isTypingTarget(el) {
+    return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+  }
+
+  function onMouseDown(e) {
+    dragging = true; dragMoved = false;
+    lastPointer = { x: e.clientX, y: e.clientY };
+  }
+  function onMouseMove(e) {
+    if (!dragging) {
+      const rect = canvas.getBoundingClientRect();
+      callbacks.onHoverScreen && callbacks.onHoverScreen(e.clientX - rect.left, e.clientY - rect.top);
+      return;
+    }
+    const dx = e.clientX - lastPointer.x, dy = e.clientY - lastPointer.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) dragMoved = true;
+    if (dragMoved) {
+      camera.x -= dx / camera.zoom;
+      camera.y -= dy / camera.zoom;
+      callbacks.onCameraChanged && callbacks.onCameraChanged();
+    }
+    lastPointer = { x: e.clientX, y: e.clientY };
+  }
+  function onMouseUp(e) {
+    if (dragging && !dragMoved) {
+      const rect = canvas.getBoundingClientRect();
+      callbacks.onTapScreen && callbacks.onTapScreen(e.clientX - rect.left, e.clientY - rect.top);
+    }
+    dragging = false;
+  }
+  function onWheel(e) {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const factor = Math.exp(-e.deltaY * 0.0012);
+    zoomAt(camera.zoom * factor, e.clientX - rect.left, e.clientY - rect.top, rect);
+  }
+  function zoomAt(newZoom, screenX, screenY, rect) {
+    newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newZoom));
+    const cx = rect.width / 2, cy = rect.height / 2;
+    const worldX = camera.x + (screenX - cx) / camera.zoom;
+    const worldY = camera.y + (screenY - cy) / camera.zoom;
+    camera.zoom = newZoom;
+    camera.x = worldX - (screenX - cx) / camera.zoom;
+    camera.y = worldY - (screenY - cy) / camera.zoom;
+    callbacks.onCameraChanged && callbacks.onCameraChanged();
+  }
+
+  // ---- Touch on the main canvas: 1 finger = pan/tap, 2 fingers = pinch zoom
+  let touchState = { mode: null, startDist: 0, startZoom: 1, startPointer: null, moved: false };
+  function touchDist(t0, t1) { return Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY); }
+
+  function onTouchStart(e) {
+    e.preventDefault();
+    if (e.touches.length === 1) {
+      touchState.mode = "pan";
+      touchState.moved = false;
+      touchState.startPointer = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      touchState.mode = "pinch";
+      touchState.startDist = touchDist(e.touches[0], e.touches[1]);
+      touchState.startZoom = camera.zoom;
+    }
+  }
+  function onTouchMove(e) {
+    e.preventDefault();
+    if (touchState.mode === "pan" && e.touches.length === 1) {
+      const t = e.touches[0];
+      const dx = t.clientX - touchState.startPointer.x, dy = t.clientY - touchState.startPointer.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) touchState.moved = true;
+      if (touchState.moved) {
+        camera.x -= dx / camera.zoom;
+        camera.y -= dy / camera.zoom;
+        callbacks.onCameraChanged && callbacks.onCameraChanged();
+      }
+      touchState.startPointer = { x: t.clientX, y: t.clientY };
+    } else if (touchState.mode === "pinch" && e.touches.length === 2) {
+      const d = touchDist(e.touches[0], e.touches[1]);
+      const factor = d / (touchState.startDist || d);
+      camera.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, touchState.startZoom * factor));
+      callbacks.onCameraChanged && callbacks.onCameraChanged();
+    }
+  }
+  function onTouchEnd(e) {
+    e.preventDefault();
+    if (touchState.mode === "pan" && !touchState.moved && e.changedTouches.length === 1) {
+      const rect = canvas.getBoundingClientRect();
+      const t = e.changedTouches[0];
+      callbacks.onTapScreen && callbacks.onTapScreen(t.clientX - rect.left, t.clientY - rect.top);
+    }
+    if (e.touches.length === 0) touchState.mode = null;
+  }
+
+  // ---- Per-frame update: applies held-key pan ---------------------------------
+  function update(dt) {
+    let dx = 0, dy = 0;
+    if (keys["KeyW"] || keys["ArrowUp"]) dy -= 1;
+    if (keys["KeyS"] || keys["ArrowDown"]) dy += 1;
+    if (keys["KeyA"] || keys["ArrowLeft"]) dx -= 1;
+    if (keys["KeyD"] || keys["ArrowRight"]) dx += 1;
+    const len = Math.hypot(dx, dy);
+    if (len > 0.001) {
+      dx /= Math.max(1, len); dy /= Math.max(1, len);
+      camera.x += dx * PAN_SPEED * dt / camera.zoom;
+      camera.y += dy * PAN_SPEED * dt / camera.zoom;
+      callbacks.onCameraChanged && callbacks.onCameraChanged();
+    }
+  }
+
+  function isLandscape() { return window.innerWidth >= window.innerHeight; }
+  function isTouchDevice() { return ("ontouchstart" in window) || navigator.maxTouchPoints > 0; }
+
+  // Re-point the module at a new camera object (e.g. after prestige/hard-reset
+  // swaps in a brand-new state tree with its own camera sub-object).
+  function setCameraRef(newCamera) { camera = newCamera; }
+
+  G.Input = { init, update, isLandscape, isTouchDevice, setCameraRef, ZOOM_MIN, ZOOM_MAX };
+})(window.Game = window.Game || {});
+
+
+/* ---- src/11-ui.js ---- */
+/* ============================================================
+   11-ui.js — All DOM/UI wiring. Reads from the shared game state
+   and calls into Game.Factory to perform actions, then re-renders
+   the affected DOM. Canvas rendering itself lives in 09-render.js.
+   ============================================================ */
+(function (G) {
+  "use strict";
+  const D = G.DATA;
+  const E = G.Econ;
+  const F = G.Factory;
+  const T = () => G.i18n.t;
+
+  let state = null;
+  let els = {};
+  let selectedSlotRef = null; // {r,c}
+  let activePanel = null;
+  let activeTechTab = "production";
+  let onAfterAction = () => {};
+  let onRequestPrestige = () => {};
+  let onStateImported = () => {};
+
+  function $(id) { return document.getElementById(id); }
+
+  function init(initialState, opts) {
+    state = initialState;
+    onAfterAction = opts.onAfterAction || (() => {});
+    onRequestPrestige = opts.onRequestPrestige || (() => {});
+    onStateImported = opts.onStateImported || (() => {});
+
+    els = {
+      moneyVal: $("hud-money-val"),
+      mpsVal: $("hud-mps-val"),
+      researchVal: $("hud-research-val"),
+      powerVal: $("hud-power-val"),
+      powerWrap: $("hud-power-wrap"),
+      zoneName: $("hud-zone-name"),
+      floorName: $("hud-floor-name"),
+      prestigeFlag: $("btn-prestige-flag"),
+      zoneButtons: $("zone-buttons"),
+      floorButtons: $("floor-buttons"),
+      tierSelector: $("tier-selector"),
+      machinePanel: $("machine-panel"),
+      modalOverlay: $("modal-overlay"),
+      modalContent: $("modal-content"),
+      toastStack: $("toast-stack"),
+      offlineModal: $("offline-modal"),
+      drawer: $("mobile-drawer"),
+      drawerToggle: $("drawer-toggle"),
+      dotPrestige: $("dot-prestige"),
+      dotTech: $("dot-tech"),
+    };
+
+    document.querySelectorAll(".menu-btn[data-panel]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        G.Audio.unlock(); G.Audio.sfxClick();
+        openPanel(btn.getAttribute("data-panel"));
+      });
+    });
+    els.modalOverlay.addEventListener("click", (e) => { if (e.target === els.modalOverlay) closePanel(); });
+    els.prestigeFlag.addEventListener("click", () => { G.Audio.sfxClick(); openPanel("prestige"); });
+    els.drawerToggle.addEventListener("click", () => {
+      els.drawer.classList.toggle("hidden");
+      renderDrawer();
+    });
+
+    buildTierSelector();
+    refreshAll();
+  }
+
+  function setState(newState) { state = newState; selectedSlotRef = null; refreshAll(); }
+
+  // ---- Formatting helpers -----------------------------------------------------
+  function money(n) { return "$" + E.formatMoney(n); }
+
+  // ---- Toasts -------------------------------------------------------------------
+  function toast(message, kind) {
+    const el = document.createElement("div");
+    el.className = "toast" + (kind === "warn" ? " warn" : "");
+    el.textContent = message;
+    els.toastStack.appendChild(el);
+    setTimeout(() => el.remove(), 2800);
+    while (els.toastStack.children.length > 4) els.toastStack.removeChild(els.toastStack.firstChild);
+  }
+
+  // ---- HUD ------------------------------------------------------------------------
+  function computeMps() {
+    let mps = 0;
+    state.zones.forEach((z) => { if (!z.unlocked) return; z.floors.forEach((f) => {
+      if (!f.unlocked) return;
+      const outMult = E.floorOutputMult(f);
+      f.grid.forEach((s) => {
+        if (!s.machine) return;
+        const cd = E.machineCooldown(s.machine, state);
+        const avgYield = E.machineBaseYield(s.machine, outMult, state) * (1 + E.machineCritChance(s.machine, state) * (E.machineCritMult(s.machine) - 1));
+        mps += avgYield / cd;
+      });
+    }); });
+    return mps;
+  }
+
+  function refreshHUD() {
+    els.moneyVal.textContent = money(state.money);
+    const mps = computeMps();
+    els.mpsVal.textContent = mps > 0 ? "+" + E.formatMoney(mps) + G.i18n.t("hud.perSec") : "";
+    els.researchVal.textContent = E.formatMoney(state.research);
+    const cap = E.powerCapacity(state);
+    const demand = E.powerDemand(state);
+    els.powerVal.textContent = Math.round(demand) + "/" + Math.round(cap);
+    els.powerWrap.style.color = demand > cap ? "var(--accent-warn)" : "";
+    const zoneDef = D.zoneById(state.currentZoneId);
+    const floorDef = D.floorById(state.currentZoneId, state.currentFloorId);
+    els.zoneName.textContent = G.i18n.t(zoneDef.nameKey);
+    els.floorName.textContent = G.i18n.t(floorDef.nameKey);
+
+    const unlocked = E.prestigeUnlocked(state);
+    els.prestigeFlag.classList.toggle("hidden", !unlocked);
+    els.dotPrestige.classList.toggle("show", unlocked);
+    els.dotTech.classList.toggle("show", state.prestige.perkPoints > 0);
+  }
+
+  // ---- Location bar (zone/floor switching) ---------------------------------------
+  function refreshLocationBar() {
+    els.zoneButtons.innerHTML = "";
+    D.ZONES.forEach((zoneDef) => {
+      const zone = F.getZone(state, zoneDef.id);
+      const btn = document.createElement("button");
+      btn.className = "lb-btn" + (zone.id === state.currentZoneId ? " active" : "") + (!zone.unlocked ? " locked" : "");
+      if (zone.unlocked) {
+        btn.innerHTML = G.i18n.t(zoneDef.nameKey);
+        btn.addEventListener("click", () => {
+          state.currentZoneId = zone.id;
+          state.currentFloorId = zoneDef.floors[0].id;
+          selectedSlotRef = null;
+          hideMachinePanel();
+          refreshAll();
+          onAfterAction();
+        });
+      } else {
+        const costLabel = zoneDef.unlock.type === "money"
+          ? G.i18n.t("zone.unlockFor", { amount: money(zoneDef.unlock.amount) })
+          : G.i18n.t("zone.unlockPrestige", { amount: zoneDef.unlock.amount });
+        btn.innerHTML = `🔒 ${G.i18n.t(zoneDef.nameKey)}<span class="lock-cost">${costLabel}</span>`;
+        btn.addEventListener("click", () => {
+          const res = F.unlockZone(state, zone.id);
+          if (res.ok) {
+            G.Audio.sfxUnlock();
+            toast(G.i18n.t("notify.zoneUnlocked", { zone: G.i18n.t(zoneDef.nameKey) }));
+            refreshAll(); onAfterAction();
+          } else if (res.reason === "money") {
+            G.Audio.sfxError(); toast(G.i18n.t("notify.notEnoughMoney"), "warn");
+          }
+        });
+      }
+      els.zoneButtons.appendChild(btn);
+    });
+
+    els.floorButtons.innerHTML = "";
+    const curZoneDef = D.zoneById(state.currentZoneId);
+    const curZone = F.getZone(state, state.currentZoneId);
+    curZoneDef.floors.forEach((floorDef) => {
+      const floor = curZone.floors.find((f) => f.id === floorDef.id);
+      const btn = document.createElement("button");
+      btn.className = "lb-btn" + (floor.id === state.currentFloorId ? " active" : "") + (!floor.unlocked ? " locked" : "");
+      if (floor.unlocked) {
+        btn.textContent = G.i18n.t(floorDef.nameKey);
+        btn.addEventListener("click", () => {
+          state.currentFloorId = floor.id;
+          selectedSlotRef = null;
+          hideMachinePanel();
+          refreshAll(); onAfterAction();
+        });
+      } else {
+        btn.innerHTML = `🔒 ${G.i18n.t(floorDef.nameKey)}<span class="lock-cost">${G.i18n.t("floor.unlockFor", { amount: money(floorDef.unlock.amount) })}</span>`;
+        btn.addEventListener("click", () => {
+          const res = F.unlockFloor(state, curZone.id, floor.id);
+          if (res.ok) {
+            G.Audio.sfxUnlock();
+            toast(G.i18n.t("notify.floorUnlocked", { floor: G.i18n.t(floorDef.nameKey) }));
+            refreshAll(); onAfterAction();
+          } else if (res.reason === "money") {
+            G.Audio.sfxError(); toast(G.i18n.t("notify.notEnoughMoney"), "warn");
+          }
+        });
+      }
+      els.floorButtons.appendChild(btn);
+    });
+  }
+
+  // ---- Tier selector ---------------------------------------------------------------
+  function buildTierSelector() {
+    els.tierSelector.innerHTML = "";
+    D.TIERS.forEach((tier, idx) => {
+      const btn = document.createElement("button");
+      btn.className = "tier-btn";
+      btn.dataset.tier = tier.id;
+      btn.innerHTML = `<div class="swatch" style="background:${tier.color}"></div><div class="tname"></div><div class="cost"></div><div class="lockicon">🔒</div>`;
+      btn.addEventListener("click", () => {
+        if (!E.tierUnlocked(state, tier.id)) { G.Audio.sfxError(); toast(G.i18n.t("tooltip.locked"), "warn"); return; }
+        state.selectedTierId = tier.id;
+        G.Audio.sfxClick();
+        refreshTierSelector();
+        onAfterAction(true);
+      });
+      els.tierSelector.appendChild(btn);
+    });
+    refreshTierSelector();
+  }
+
+  function refreshTierSelector() {
+    D.TIERS.forEach((tier) => {
+      const btn = els.tierSelector.querySelector(`.tier-btn[data-tier="${tier.id}"]`);
+      if (!btn) return;
+      const unlocked = E.tierUnlocked(state, tier.id);
+      btn.classList.toggle("unlocked", unlocked);
+      btn.classList.toggle("selected", state.selectedTierId === tier.id);
+      btn.querySelector(".lockicon").style.display = unlocked ? "none" : "block";
+      btn.querySelector(".tname").textContent = G.i18n.t("tier." + tier.id);
+      btn.querySelector(".cost").textContent = unlocked ? "$" + E.formatMoney(E.machineCost(state, tier.id)) : "";
+    });
+  }
+
+  // ---- Machine side panel --------------------------------------------------------
+  function hideMachinePanel() {
+    els.machinePanel.classList.add("hidden");
+    selectedSlotRef = null;
+    if (G.Render) G.Render.setSelected(null);
+  }
+
+  function selectSlot(slot) {
+    selectedSlotRef = { r: slot.r, c: slot.c };
+    if (G.Render) G.Render.setSelected(selectedSlotRef);
+    renderMachinePanel();
+  }
+
+  function renderMachinePanel() {
+    if (!selectedSlotRef) { els.machinePanel.classList.add("hidden"); return; }
+    const floor = F.currentFloor(state);
+    const slot = floor.grid.find((s) => s.r === selectedSlotRef.r && s.c === selectedSlotRef.c);
+    if (!slot || !slot.machine) { hideMachinePanel(); return; }
+    const m = slot.machine;
+    const tier = D.tierById(m.tierId);
+    els.machinePanel.classList.remove("hidden");
+
+    const rows = ["speed", "output", "ink"].map((uid) => {
+      const u = D.UPGRADES[uid];
+      const lvl = m.levels[uid];
+      const maxed = lvl >= u.maxLevel;
+      const cost = maxed ? 0 : E.upgradeCost(uid, lvl, state);
+      const afford = !maxed && state.money >= cost;
+      return `<div class="upg-row">
+        <div><div class="upg-name">${G.i18n.t(u.nameKey)}</div><div class="upg-level">${maxed ? G.i18n.t("action.max") : "Lv " + lvl + " → " + (lvl + 1)}</div></div>
+        <button class="btn" data-upgrade="${uid}" ${maxed || !afford ? "disabled" : ""}>${maxed ? G.i18n.t("action.max") : money(cost)}</button>
+      </div>`;
+    }).join("");
+
+    els.machinePanel.innerHTML = `
+      <button class="panel-close" id="mp-close">✕</button>
+      <h3 style="color:${tier.color}">${G.i18n.t("machine." + tier.id + ".name")}</h3>
+      <div class="m-desc">${G.i18n.t("machine." + tier.id + ".desc")}</div>
+      <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
+        ${G.i18n.t("tier." + tier.id)} · ${E.formatMoney(1 / E.machineCooldown(m, state))} cyc/s
+      </div>
+      ${rows}
+    `;
+    $("mp-close").addEventListener("click", hideMachinePanel);
+    els.machinePanel.querySelectorAll("[data-upgrade]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const uid = btn.getAttribute("data-upgrade");
+        const res = F.upgradeMachine(state, state.currentZoneId, state.currentFloorId, slot.r, slot.c, uid);
+        if (res.ok) {
+          G.Audio.sfxUpgrade();
+          toast(G.i18n.t("notify.upgradeBought", { upgrade: G.i18n.t(D.UPGRADES[uid].nameKey), level: res.newLevel }));
+          renderMachinePanel();
+          refreshHUD(); refreshTierSelector();
+          onAfterAction();
+        } else if (res.reason === "money") {
+          G.Audio.sfxError(); toast(G.i18n.t("notify.notEnoughMoney"), "warn");
+        }
+      });
+    });
+  }
+
+  // ---- Generic modal open/close ---------------------------------------------------
+  function openPanel(name) {
+    activePanel = name;
+    els.modalOverlay.classList.remove("hidden");
+    renderPanel();
+  }
+  function closePanel() {
+    activePanel = null;
+    els.modalOverlay.classList.add("hidden");
+  }
+  function renderPanel() {
+    if (!activePanel) return;
+    // Preserve scroll position across re-renders: this fires periodically
+    // (see main.js loop) so a modal open with a scrolled list doesn't jump
+    // back to the top every ~150ms while the player is reading it.
+    const scrollTop = els.modalContent.scrollTop;
+    if (activePanel === "rooms") renderRoomsPanel();
+    else if (activePanel === "prestige") renderPrestigePanel();
+    else if (activePanel === "tech") renderTechPanel();
+    else if (activePanel === "settings") renderSettingsPanel();
+    els.modalContent.scrollTop = scrollTop;
+  }
+
+  // ---- Rooms panel ------------------------------------------------------------------
+  const ROOM_ICONS = { rnd: "🔬", vault: "🏦", power: "⚡" };
+  function renderRoomsPanel() {
+    const cards = ["rnd", "vault", "power"].map((rid) => {
+      const def = D.ROOMS[rid];
+      const lvl = state.rooms[rid].level;
+      const maxed = lvl >= def.maxLevel;
+      const cost = maxed ? 0 : E.roomCost(rid, lvl);
+      const afford = !maxed && state.money >= cost;
+      let statLine = "";
+      if (rid === "rnd") statLine = `${E.formatMoney(E.rndRatePerSec(state))} 🔬${G.i18n.t("common.perSecShort")}`;
+      if (rid === "vault") statLine = `${G.i18n.t("room.level", { level: lvl })} · cap ${E.vaultOfflineCapHours(state).toFixed(1)}h · +${(E.vaultInterestPerHour(state) * 100).toFixed(2)}%${G.i18n.t("common.perHour")}`;
+      if (rid === "power") statLine = `${Math.round(E.powerDemand(state))}/${Math.round(E.powerCapacity(state))} used`;
+      const pct = Math.min(100, (lvl / def.maxLevel) * 100);
+      return `<div class="room-card">
+        <div class="r-icon">${ROOM_ICONS[rid]}</div>
+        <div class="r-body">
+          <div class="r-title">${G.i18n.t("room." + rid + ".name")} <span style="color:var(--text-muted); font-size:12px;">${G.i18n.t("room.level", { level: lvl })}</span></div>
+          <div class="r-desc">${G.i18n.t("room." + rid + ".desc")}</div>
+          <div class="r-desc">${statLine}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+        </div>
+        <button class="btn brass" data-room="${rid}" ${maxed || !afford ? "disabled" : ""}>${maxed ? G.i18n.t("action.max") : money(cost)}</button>
+      </div>`;
+    }).join("");
+
+    els.modalContent.innerHTML = `
+      <button class="panel-close" id="modal-close">✕</button>
+      <h2>${G.i18n.t("menu.rooms")}</h2>
+      ${floorSystemsBlock()}
+      <div class="m-sub" style="margin-top:14px;">${G.i18n.t("menu.rooms")}</div>
+      ${cards}
+    `;
+    wireModalClose();
+    els.modalContent.querySelectorAll("[data-room]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rid = btn.getAttribute("data-room");
+        const res = F.upgradeRoom(state, rid);
+        if (res.ok) { G.Audio.sfxUpgrade(); refreshHUD(); renderRoomsPanel(); onAfterAction(); }
+        else if (res.reason === "money") { G.Audio.sfxError(); toast(G.i18n.t("notify.notEnoughMoney"), "warn"); }
+      });
+    });
+    wireFloorSystemButtons();
+  }
+
+  function floorSystemsBlock() {
+    const floor = F.currentFloor(state);
+    const rows = ["conveyor", "collector"].map((sid) => {
+      const def = D.FLOOR_SYSTEMS[sid];
+      const lvl = floor.systems[sid];
+      const maxed = lvl >= def.maxLevel;
+      const cost = maxed ? 0 : E.floorSystemCost(sid, lvl, state);
+      const afford = !maxed && state.money >= cost;
+      const icon = sid === "conveyor" ? "🛞" : "🧲";
+      return `<div class="room-card">
+        <div class="r-icon">${icon}</div>
+        <div class="r-body">
+          <div class="r-title">${G.i18n.t("floorsys." + sid)} <span style="color:var(--text-muted); font-size:12px;">${G.i18n.t("room.level", { level: lvl })}</span></div>
+          <div class="r-desc">${G.i18n.t("floorsys." + sid + ".desc")}</div>
+        </div>
+        <button class="btn" data-floorsys="${sid}" ${maxed || !afford ? "disabled" : ""}>${maxed ? G.i18n.t("action.max") : money(cost)}</button>
+      </div>`;
+    }).join("");
+    return `<div class="m-sub">${G.i18n.t("menu.factory")} — ${G.i18n.t("hud.floor")}</div>${rows}`;
+  }
+  function wireFloorSystemButtons() {
+    els.modalContent.querySelectorAll("[data-floorsys]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const sid = btn.getAttribute("data-floorsys");
+        const res = F.buyFloorSystem(state, state.currentZoneId, state.currentFloorId, sid);
+        if (res.ok) {
+          G.Audio.sfxUpgrade();
+          refreshHUD(); renderRoomsPanel(); onAfterAction();
+        } else if (res.reason === "money") { G.Audio.sfxError(); toast(G.i18n.t("notify.notEnoughMoney"), "warn"); }
+        else if (res.reason === "power") { G.Audio.sfxError(); toast(G.i18n.t("notify.notEnoughPower"), "warn"); }
+      });
+    });
+  }
+
+  // ---- Prestige panel -----------------------------------------------------------------
+  function renderPrestigePanel() {
+    const unlocked = E.prestigeUnlocked(state);
+    const gain = E.prestigeGain(state);
+    const requirement = E.prestigeRequirement(state);
+    els.modalContent.innerHTML = `
+      <button class="panel-close" id="modal-close">✕</button>
+      <h2>${G.i18n.t("prestige.title")}</h2>
+      <div class="m-sub">${G.i18n.t("prestige.desc")}</div>
+      <div class="prestige-big">
+        ${unlocked
+          ? `<div class="p-gain">+${gain}</div><div class="m-sub">${G.i18n.t("prestige.gain", { amount: gain })}</div>`
+          : `<div class="m-sub">${G.i18n.t("prestige.locked", { amount: money(requirement) })}</div>
+             <div class="bar-track" style="margin-top:10px;"><div class="bar-fill" style="width:${Math.min(100, (state.maxMoney / requirement) * 100)}%"></div></div>`
+        }
+      </div>
+      <div class="m-sub" style="text-align:center; margin-bottom:14px;">${G.i18n.t("prestige.current", { count: state.prestige.count, points: state.prestige.perkPoints })}</div>
+      <button class="btn brass" id="btn-do-prestige" style="width:100%; padding:12px; font-size:15px;" ${unlocked ? "" : "disabled"}>${G.i18n.t("action.rebirth")}</button>
+    `;
+    wireModalClose();
+    const btn = $("btn-do-prestige");
+    if (btn) btn.addEventListener("click", () => { onRequestPrestige(); });
+  }
+
+  // ---- Tech tree panel ----------------------------------------------------------------
+  function renderTechPanel() {
+    const branches = ["production", "automation", "economy"];
+    const cols = branches.map((branch) => {
+      const nodes = D.TECH_TREE.filter((t) => t.branch === branch).map((t) => {
+        const owned = !!state.prestige.tech[t.id];
+        const reqMet = E.techRequirementsMet(state, t);
+        const locked = !owned && !reqMet;
+        const costLabel = owned ? G.i18n.t("action.selected") : t.cost + " ⭐ · " + E.formatMoney(t.researchCost) + " 🔬";
+        return `<div class="tech-node ${owned ? "owned" : locked ? "locked" : ""}" data-tech="${t.id}">
+          <div class="t-name">${owned ? "✅ " : locked ? "🔒 " : ""}${G.i18n.t(t.nameKey)}</div>
+          <div class="t-cost">${costLabel}</div>
+        </div>`;
+      }).join("");
+      return `<div class="tech-branch"><h4>${G.i18n.t("tech.branch." + branch)}</h4>${nodes}</div>`;
+    }).join("");
+
+    els.modalContent.innerHTML = `
+      <button class="panel-close" id="modal-close">✕</button>
+      <h2>${G.i18n.t("tech.title")}</h2>
+      <div class="m-sub">${G.i18n.t("tech.points", { points: state.prestige.perkPoints, research: E.formatMoney(state.research) })}</div>
+      <div class="tech-grid">${cols}</div>
+    `;
+    wireModalClose();
+    els.modalContent.querySelectorAll("[data-tech]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const id = el.getAttribute("data-tech");
+        const tech = D.techById(id);
+        const res = F.buyTech(state, id);
+        if (res.ok) {
+          G.Audio.sfxTechUnlock();
+          toast(G.i18n.t("notify.techUnlocked", { tech: G.i18n.t(tech.nameKey) }));
+          renderTechPanel(); refreshHUD(); refreshTierSelector();
+          onAfterAction();
+        } else if (res.reason === "points") { G.Audio.sfxError(); toast(G.i18n.t("notify.notEnoughPoints"), "warn"); }
+        else if (res.reason === "research") { G.Audio.sfxError(); toast(G.i18n.t("notify.notEnoughResearch"), "warn"); }
+        else if (res.reason === "requires") { G.Audio.sfxError(); }
+      });
+    });
+  }
+
+  // ---- Settings panel -------------------------------------------------------------------
+  function renderSettingsPanel() {
+    els.modalContent.innerHTML = `
+      <button class="panel-close" id="modal-close">✕</button>
+      <h2>${G.i18n.t("settings.title")}</h2>
+      <div class="setting-row">
+        <span>${G.i18n.t("settings.language")}</span>
+        <div class="lang-toggle">
+          <button data-lang="en" class="${state.settings.lang === "en" ? "active" : ""}">English</button>
+          <button data-lang="vi" class="${state.settings.lang === "vi" ? "active" : ""}">Tiếng Việt</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span>${G.i18n.t("settings.music")}</span>
+        <label class="switch"><input type="checkbox" id="chk-music" ${state.settings.music ? "checked" : ""}><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="setting-row">
+        <span>${G.i18n.t("settings.sfx")}</span>
+        <label class="switch"><input type="checkbox" id="chk-sfx" ${state.settings.sfx ? "checked" : ""}><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="setting-row">
+        <span style="font-size:12px; color:var(--text-muted);">${G.i18n.t("controls.title")}: ${G.Input.isTouchDevice() ? G.i18n.t("controls.mobile") : G.i18n.t("controls.pc")}</span>
+      </div>
+      <div class="setting-row" style="display:block;">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+          <span>${G.i18n.t("settings.export")}</span>
+          <button class="btn" id="btn-export-save">${G.i18n.t("settings.export")}</button>
+        </div>
+        <textarea id="save-export-code" readonly style="width:100%; min-height:72px; resize:vertical; box-sizing:border-box; font:11px monospace; background:var(--bg-deep); color:var(--text-secondary); border:1px solid var(--line); border-radius:var(--radius-sm); padding:8px;"></textarea>
+      </div>
+      <div class="setting-row" style="display:block;">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+          <span>${G.i18n.t("settings.import")}</span>
+          <button class="btn" id="btn-import-save">${G.i18n.t("settings.import")}</button>
+        </div>
+        <textarea id="save-import-code" placeholder="Paste save code here" style="width:100%; min-height:72px; resize:vertical; box-sizing:border-box; font:11px monospace; background:var(--bg-deep); color:var(--text-secondary); border:1px solid var(--line); border-radius:var(--radius-sm); padding:8px;"></textarea>
+      </div>
+      <div class="setting-row">
+        <button class="btn warn" id="btn-hard-reset">${G.i18n.t("settings.hardReset")}</button>
+      </div>
+    `;
+    wireModalClose();
+    els.modalContent.querySelectorAll("[data-lang]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const lang = btn.getAttribute("data-lang");
+        state.settings.lang = lang;
+        G.i18n.setLang(lang);
+        refreshAll();
+      });
+    });
+    $("chk-music").addEventListener("change", (e) => { state.settings.music = e.target.checked; G.Audio.setMusicEnabled(e.target.checked); onAfterAction(); });
+    $("chk-sfx").addEventListener("change", (e) => { state.settings.sfx = e.target.checked; G.Audio.setSfxEnabled(e.target.checked); onAfterAction(); });
+    $("btn-export-save").addEventListener("click", async () => {
+      const code = G.Save.exportSave(state);
+      const area = $("save-export-code");
+      area.value = code || "";
+      if (!code) return;
+      area.focus(); area.select();
+      try {
+        if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code);
+        toast(G.i18n.t("notify.saveExported"));
+      } catch (e) {
+        toast(G.i18n.t("notify.saveExported"));
+      }
+    });
+    $("btn-import-save").addEventListener("click", () => {
+      const code = $("save-import-code").value.trim();
+      if (!code) return;
+      const imported = G.Save.importSave(code);
+      if (!imported) { G.Audio.sfxError(); toast(G.i18n.t("notify.importFailed"), "warn"); return; }
+      onStateImported(imported);
+    });
+    $("btn-hard-reset").addEventListener("click", () => {
+      if (confirm(G.i18n.t("settings.hardResetConfirm"))) {
+        window.dispatchEvent(new CustomEvent("mft:hardreset"));
+      }
+    });
+  }
+
+  function wireModalClose() {
+    const btn = $("modal-close");
+    if (btn) btn.addEventListener("click", closePanel);
+  }
+
+  // ---- Mobile drawer (controls help / quick info) -----------------------------------------
+  function renderDrawer() {
+    if (!els.drawer || els.drawer.classList.contains("hidden")) return;
+    els.drawer.innerHTML = `
+      <div style="font-family:var(--font-display); font-size:14px; margin-bottom:6px;">${G.i18n.t("controls.title")}</div>
+      <div style="font-size:11px; color:var(--text-muted); line-height:1.5;">${G.i18n.t("controls.mobile")}</div>
+    `;
+  }
+
+  // ---- Offline earnings modal ----------------------------------------------------------------
+  function showOfflineModal(result, elapsedSeconds, onClaim) {
+    els.offlineModal.classList.remove("hidden");
+    $("offline-body").textContent = G.i18n.t("offline.body", { time: E.formatTime(elapsedSeconds) });
+    $("offline-amount").textContent = G.i18n.t("offline.earned", { amount: money(result.amount) });
+    $("offline-capped-note").classList.toggle("hidden", !result.wasCapped);
+    const btn = $("offline-claim-btn");
+    const handler = () => {
+      els.offlineModal.classList.add("hidden");
+      btn.removeEventListener("click", handler);
+      onClaim();
+    };
+    btn.addEventListener("click", handler);
+  }
+
+  // ---- Full refresh ----------------------------------------------------------------------------
+  function refreshAll() {
+    refreshHUD();
+    refreshLocationBar();
+    refreshTierSelector();
+    renderMachinePanel();
+    if (activePanel) renderPanel();
+    G.i18n.applyToDom();
+  }
+
+  G.UI = {
+    init, setState, refreshAll, refreshHUD, refreshLocationBar, refreshTierSelector,
+    selectSlot, hideMachinePanel, renderMachinePanel,
+    openPanel, closePanel, toast, showOfflineModal, renderDrawer,
+    refreshOpenPanel: renderPanel,
+    isInputBlocked() {
+      return !!activePanel || !!els.offlineModal && !els.offlineModal.classList.contains("hidden");
+    },
+    get selectedSlot() { return selectedSlotRef; },
+    get isPanelOpen() { return !!activePanel; },
+  };
+})(window.Game = window.Game || {});
+
+
+/* ---- src/12-main.js ---- */
+/* ============================================================
+   12-main.js — Bootstraps the game: loads save, wires up input/
+   render/UI/audio, and runs the main requestAnimationFrame loop.
+   ============================================================ */
+(function (G) {
+  "use strict";
+  const D = G.DATA;
+  const E = G.Econ;
+  const F = G.Factory;
+
+  let state = null;
+  let canvas;
+  let bonusSlot = null;    // {zoneId, floorId, r, c, expiresAt}
+  let lastFrameTime = 0;
+  let audioUnlocked = false;
+  let critFlashThrottle = 0;
+  let hudAccum = 0;
+  let dirty = false; // true if state changed since last save eligibility check
+
+  function boot() {
+    const loaded = G.Save.load();
+    state = loaded.state;
+    F.resetRuntime();
+
+    G.i18n.setLang(state.settings.lang);
+
+    canvas = document.getElementById("gameCanvas");
+
+    G.Render.init(canvas);
+    G.Render.setCamera(state.camera);
+
+    G.Audio.setMusicEnabled(state.settings.music);
+    G.Audio.setSfxEnabled(state.settings.sfx);
+    G.Audio.setMusicVolume(state.settings.musicVolume);
+    G.Audio.setSfxVolume(state.settings.sfxVolume);
+
+    G.Input.init({
+      canvas, camera: state.camera,
+      callbacks: {
+        onCameraChanged: () => { dirty = true; },
+        onTapScreen: handleTapScreen,
+        onHoverScreen: handleHoverScreen,
+        onSelectTierIndex: handleSelectTierIndex,
+        onCollectNearest: handleCollectNearest,
+        isInputBlocked: () => G.UI.isInputBlocked(),
+      },
+    });
+
+    G.UI.init(state, {
+      onAfterAction: () => { dirty = true; },
+      onRequestPrestige: handlePrestigeRequest,
+      onStateImported: handleImportedState,
+    });
+
+    wireGlobalUi();
+    setupOrientationGuard();
+    window.addEventListener("resize", () => G.Render.resize());
+
+    // Unlock WebAudio on first user gesture (required by browser autoplay policy).
+    const unlock = () => {
+      if (audioUnlocked) return;
+      audioUnlocked = true;
+      G.Audio.unlock();
+      if (state.settings.music) G.Audio.startMusic();
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { once: false });
+    window.addEventListener("keydown", unlock, { once: false });
+    window.addEventListener("touchstart", unlock, { once: false });
+
+    maybeShowOfflineModal(loaded);
+
+    // Autosave loop. lastActiveTime is refreshed on every autosave (not just
+    // on tab-hide/unload) so a hard crash or force-quit doesn't leave a stale
+    // timestamp that would make the next offline-earnings calculation count
+    // this entire play session as "away" time.
+    setInterval(() => {
+      if (!state.offlinePending) state.lastActiveTime = Date.now();
+      G.Save.save(state);
+    }, G.Save.AUTOSAVE_INTERVAL_SEC * 1000);
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("beforeunload", () => {
+      if (!state.offlinePending) state.lastActiveTime = Date.now();
+      G.Save.save(state);
+    });
+
+    requestAnimationFrame(loop);
+  }
+
+  // ---- Offline earnings ------------------------------------------------------------
+  function createOfflinePending(elapsedSeconds) {
+    const result = F.simulateOfflineEarnings(state, elapsedSeconds);
+    state.offlinePending = { ...result, elapsedSeconds };
+    // The transaction is now persisted so reloads cannot lose or duplicate it.
+    G.Save.save(state);
+    return result;
+  }
+
+  function claimOfflineReward(result) {
+    F.applyOfflineEarnings(state, result);
+    state.offlinePending = null;
+    state.lastActiveTime = Date.now();
+    G.Save.save(state);
+    G.UI.refreshAll();
+    dirty = true;
+  }
+
+  function showPendingOfflineReward() {
+    if (!state.offlinePending) return false;
+    const pending = state.offlinePending;
+    G.UI.showOfflineModal(pending, pending.elapsedSeconds, () => claimOfflineReward(pending));
+    return true;
+  }
+
+  function maybeShowOfflineModal(loaded) {
+    if (state.offlinePending) {
+      showPendingOfflineReward();
+      return;
+    }
+    if (loaded.isNewGame || loaded.offlineElapsedSeconds < 60) return;
+    const result = createOfflinePending(loaded.offlineElapsedSeconds);
+    G.UI.showOfflineModal(result, loaded.offlineElapsedSeconds, () => claimOfflineReward(result));
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState !== "visible") {
+      if (!state.offlinePending) state.lastActiveTime = Date.now();
+      G.Save.save(state);
+      return;
+    }
+
+    // Avoid a large frame delta after returning from a backgrounded tab.
+    lastFrameTime = performance.now();
+    if (state.offlinePending) return;
+
+    const elapsed = Math.max(0, (Date.now() - state.lastActiveTime) / 1000);
+    if (elapsed < 0.25) return;
+
+    const result = F.simulateOfflineEarnings(state, elapsed);
+    if (elapsed >= 60) {
+      state.offlinePending = { ...result, elapsedSeconds: elapsed };
+      G.Save.save(state);
+      G.UI.showOfflineModal(result, elapsed, () => claimOfflineReward(result));
+    } else {
+      F.applyOfflineEarnings(state, result);
+      state.lastActiveTime = Date.now();
+      G.Save.save(state);
+      G.UI.refreshAll();
+      dirty = true;
+    }
+  }
+
+  // ---- Input -> game action handlers --------------------------------------------------
+  function handleHoverScreen(sx, sy) {
+    const slot = G.Render.slotAtScreen(sx, sy);
+    G.Render.setHover(slot);
+  }
+
+  function handleSelectTierIndex(idx) {
+    const tier = D.TIERS[idx];
+    if (!tier) return;
+    if (!E.tierUnlocked(state, tier.id)) { G.Audio.sfxError(); G.UI.toast(G.i18n.t("tooltip.locked"), "warn"); return; }
+    state.selectedTierId = tier.id;
+    G.UI.refreshTierSelector();
+    dirty = true;
+  }
+
+  function handleTapScreen(sx, sy) {
+    const slot = G.Render.slotAtScreen(sx, sy);
+    if (!slot) return;
+    const floor = F.currentFloor(state);
+    const gridSlot = floor.grid.find((s) => s.r === slot.r && s.c === slot.c);
+    if (!gridSlot) return;
+
+    if (gridSlot.machine) {
+      collectSlot(gridSlot, true);
+    } else {
+      const res = F.placeMachine(state, state.currentZoneId, state.currentFloorId, slot.r, slot.c, state.selectedTierId);
+      if (res.ok) {
+        G.Audio.sfxPlaceMachine();
+        const tierName = G.i18n.t("tier." + res.tierId);
+        G.UI.toast(G.i18n.t("notify.machinePlaced", { tier: tierName }));
+        G.UI.refreshHUD(); G.UI.refreshTierSelector();
+        dirty = true;
+      } else if (res.reason === "money") {
+        G.Audio.sfxError(); G.UI.toast(G.i18n.t("notify.notEnoughMoney"), "warn");
+      } else if (res.reason === "tierLocked") {
+        G.Audio.sfxError(); G.UI.toast(G.i18n.t("tooltip.locked"), "warn");
+      }
+    }
+  }
+
+  function collectSlot(gridSlot, selectAfter) {
+    const isBonus = bonusSlot && bonusSlot.zoneId === state.currentZoneId && bonusSlot.floorId === state.currentFloorId
+      && bonusSlot.r === gridSlot.r && bonusSlot.c === gridSlot.c;
+    const had = gridSlot.machine.banked;
+    const res = F.collectMachine(state, state.currentZoneId, state.currentFloorId, gridSlot.r, gridSlot.c);
+    if (res.amount > 0) {
+      const p = G.Render.slotWorldPos(gridSlot.r, gridSlot.c);
+      G.Render.spawnCollectFloater(p.x, p.y - 30, res.amount, false);
+      G.Audio.sfxCollect(Math.min(1, res.amount / 1000));
+    }
+    if (isBonus) {
+      const bonusAmount = (had > 0 ? had : E.machineBaseYield(gridSlot.machine, 1, state)) * (1.5 + Math.random() * 2);
+      F.grantMoney(state, bonusAmount);
+      const p = G.Render.slotWorldPos(gridSlot.r, gridSlot.c);
+      G.Render.spawnBonusIcon(p.x, p.y - 30);
+      G.Audio.sfxBonus();
+      bonusSlot = null;
+    }
+    if (selectAfter) G.UI.selectSlot(gridSlot);
+    G.UI.refreshHUD();
+    dirty = true;
+  }
+
+  function handleCollectNearest() {
+    const floor = F.currentFloor(state);
+    if (!floor) return;
+    let best = null;
+    let bestDistSq = Infinity;
+    floor.grid.forEach((s) => {
+      if (!s.machine || s.machine.banked <= 0) return;
+      const p = G.Render.slotWorldPos(s.r, s.c);
+      const dx = p.x - state.camera.x;
+      const dy = p.y - state.camera.y;
+      const distSq = dx * dx + dy * dy;
+      if (distSq < bestDistSq) {
+        best = s;
+        bestDistSq = distSq;
+      }
+    });
+    if (best) collectSlot(best, false);
+  }
+
+  // ---- Prestige / reset ----------------------------------------------------------------
+  function handlePrestigeRequest() {
+    if (!E.prestigeUnlocked(state)) return;
+    const gain = E.prestigeGain(state);
+    const ok = window.confirm(
+      G.i18n.t("prestige.confirmTitle") + "\n\n" + G.i18n.t("prestige.confirmBody") + "\n\n" + G.i18n.t("prestige.gain", { amount: gain })
+    );
+    if (!ok) return;
+    const res = F.doPrestige(state);
+    if (!res.ok) return;
+    state = res.newState;
+    bonusSlot = null;
+    F.resetRuntime();
+    G.Render.setCamera(state.camera);
+    G.Input.setCameraRef(state.camera);
+    G.UI.setState(state);
+    G.UI.closePanel();
+    G.Audio.sfxPrestige();
+    G.UI.toast(G.i18n.t("notify.prestige", { points: res.gain }));
+    G.Save.save(state);
+  }
+
+  function handleImportedState(newState) {
+    state = newState;
+    bonusSlot = null;
+    F.resetRuntime();
+    G.i18n.setLang(state.settings.lang);
+    G.Audio.setMusicEnabled(state.settings.music);
+    G.Audio.setSfxEnabled(state.settings.sfx);
+    G.Audio.setMusicVolume(state.settings.musicVolume);
+    G.Audio.setSfxVolume(state.settings.sfxVolume);
+    G.Render.setCamera(state.camera);
+    G.Input.setCameraRef(state.camera);
+    G.UI.setState(state);
+    G.UI.closePanel();
+    G.Save.save(state);
+    G.UI.toast(G.i18n.t("notify.saved"));
+  }
+
+  function handleHardReset() {
+    state = G.Save.hardReset();
+    bonusSlot = null;
+    F.resetRuntime();
+    G.i18n.setLang(state.settings.lang);
+    G.Audio.setMusicEnabled(state.settings.music);
+    G.Audio.setSfxEnabled(state.settings.sfx);
+    G.Audio.setMusicVolume(state.settings.musicVolume);
+    G.Audio.setSfxVolume(state.settings.sfxVolume);
+    G.Render.setCamera(state.camera);
+    G.Input.setCameraRef(state.camera);
+    G.UI.setState(state);
+    G.UI.closePanel();
+  }
+
+  function wireGlobalUi() {
+    window.addEventListener("mft:hardreset", handleHardReset);
+  }
+
+  // ---- Orientation guard (mobile portrait -> ask to rotate) -----------------------------
+  function setupOrientationGuard() {
+    const notice = document.getElementById("rotate-notice");
+    function check() {
+      const touch = G.Input.isTouchDevice();
+      const portrait = window.innerHeight > window.innerWidth;
+      notice.classList.toggle("hidden", !(touch && portrait));
+    }
+    window.addEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    check();
+  }
+
+  // ---- Event processing from factory tick -------------------------------------------------
+  function processEvents(events) {
+    const now = performance.now();
+    events.forEach((ev) => {
+      if (ev.type === "cycle" && ev.crit) {
+        if (now - critFlashThrottle > 220) {
+          critFlashThrottle = now;
+          if (ev.zoneId === state.currentZoneId && ev.floorId === state.currentFloorId) {
+            const p = G.Render.slotWorldPos(ev.r, ev.c);
+            G.Render.spawnParticle({ kind: "spark", x: p.x, y: p.y, vx: 0, vy: -30, life: 0.5, size: 10, color: "rgba(255,210,90,0.9)" });
+            G.Audio.sfxCrit();
+          }
+        }
+      } else if (ev.type === "autocollect") {
+        if (ev.zoneId === state.currentZoneId && ev.floorId === state.currentFloorId && ev.amount > 0) {
+          G.Audio.sfxCollect(Math.min(1, ev.amount / 2000));
+        }
+      } else if (ev.type === "bonusReady") {
+        if (ev.zoneId === state.currentZoneId && ev.floorId === state.currentFloorId) {
+          bonusSlot = { zoneId: ev.zoneId, floorId: ev.floorId, r: ev.r, c: ev.c, expiresAt: Date.now() + 30000 };
+        }
+      }
+    });
+    if (bonusSlot && Date.now() > bonusSlot.expiresAt) bonusSlot = null;
+  }
+
+  // ---- Main loop -----------------------------------------------------------------------------
+  function loop(ts) {
+    if (!lastFrameTime) lastFrameTime = ts;
+    let dt = (ts - lastFrameTime) / 1000;
+    lastFrameTime = ts;
+    dt = Math.max(0, Math.min(0.25, dt)); // clamp to avoid huge jumps (tab backgrounded)
+
+    G.Input.update(dt);
+    const events = F.tick(state, dt);
+    processEvents(events);
+
+    const floor = F.currentFloor(state);
+    let bonusKey = null;
+    if (bonusSlot && bonusSlot.zoneId === state.currentZoneId && bonusSlot.floorId === state.currentFloorId) {
+      bonusKey = bonusSlot.r + "_" + bonusSlot.c;
+    }
+    G.Render.render(state, floor, dt, bonusKey);
+
+    hudAccum += dt;
+    if (hudAccum >= 0.15) {
+      hudAccum = 0;
+      G.UI.refreshHUD();
+      if (G.UI.selectedSlot) G.UI.renderMachinePanel();
+      if (G.UI.isPanelOpen) G.UI.refreshOpenPanel();
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})(window.Game = window.Game || {});
+
+
+</script>
+</body>
+</html>
